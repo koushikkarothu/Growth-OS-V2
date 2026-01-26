@@ -3,14 +3,10 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Trophy, Zap } from 'lucide-react'
+import { Plus, Trash2, Trophy, Zap, Sparkles } from 'lucide-react'
 
 interface Skill {
-  id: number
-  name: string
-  level: number
-  current_xp: number
-  next_level_xp: number
+  id: number; name: string; level: number; current_xp: number; next_level_xp: number
 }
 
 export default function SkillTreePage() {
@@ -19,145 +15,86 @@ export default function SkillTreePage() {
   const [loading, setLoading] = useState(true)
   const [newSkillName, setNewSkillName] = useState('')
 
-  // 1. Check Auth & Fetch
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/login')
-        return
-      }
+      if (!user) { router.push('/login'); return }
       fetchSkills()
     }
     init()
   }, [])
 
   async function fetchSkills() {
-    const { data } = await supabase
-      .from('skills')
-      .select('*')
-      .order('level', { ascending: false }) // Highest level first
-    
+    const { data } = await supabase.from('skills').select('*').order('level', { ascending: false })
     if (data) setSkills(data)
     setLoading(false)
   }
 
-  // 2. Add New Skill
   async function addSkill(e: React.FormEvent) {
-    e.preventDefault()
-    if (!newSkillName.trim()) return
-
+    e.preventDefault(); if (!newSkillName.trim()) return
     const { data: { user } } = await supabase.auth.getUser()
-
-    const newSkill = {
-      user_id: user?.id,
-      name: newSkillName,
-      level: 1,
-      current_xp: 0,
-      next_level_xp: 100
-    }
-
-    // Optimistic Update
-    const tempId = Math.random()
-    setSkills([...skills, { ...newSkill, id: tempId } as Skill])
-    setNewSkillName('')
-
-    const { error } = await supabase.from('skills').insert([newSkill])
-    if (error) {
-      alert('Error creating skill')
-      fetchSkills()
-    } else {
-      fetchSkills()
-    }
+    await supabase.from('skills').insert([{ user_id: user?.id, name: newSkillName, level: 1, current_xp: 0, next_level_xp: 100 }])
+    setNewSkillName(''); fetchSkills()
   }
 
-  // 3. Delete Skill
   async function deleteSkill(id: number) {
-    if (!confirm('Are you sure? This will delete all progress for this skill.')) return
-    
-    setSkills(skills.filter(s => s.id !== id))
-    await supabase.from('skills').delete().eq('id', id)
+    if (!confirm('Delete this skill?')) return
+    await supabase.from('skills').delete().eq('id', id); fetchSkills()
   }
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-6xl mx-auto pb-20 animate-in fade-in duration-500">
       <header className="mb-10">
-        <h1 className="text-3xl font-bold text-white mb-2">🌳 Skill Tree</h1>
-        <p className="text-gray-400">"Visualizing your growth, one level at a time."</p>
+        <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">Skill Tree</h1>
+        <p className="text-slate-500 font-medium">Visualize your growth and level up your life.</p>
       </header>
 
-      {/* CREATE SKILL BAR */}
-      <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4 mb-10">
-        <form onSubmit={addSkill} className="flex gap-3">
-          <input 
-            type="text" 
-            placeholder="Name a new skill (e.g. Python, Calisthenics, Design)..."
-            className="flex-1 bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-teal-500 outline-none"
-            value={newSkillName}
-            onChange={(e) => setNewSkillName(e.target.value)}
-          />
-          <button 
-            type="submit"
-            className="bg-teal-600 hover:bg-teal-500 text-white px-6 rounded-lg font-bold transition-colors flex items-center gap-2"
-          >
-            <Plus size={20} />
-            Unlock Skill
-          </button>
-        </form>
+      {/* CREATE BAR */}
+      <div className="bg-white border border-slate-200 rounded-3xl p-2 mb-10 shadow-sm flex gap-2">
+        <input 
+          type="text" 
+          placeholder="Unlock a new skill (e.g. Design, Spanish, Coding)..."
+          className="flex-1 bg-transparent px-6 py-3 text-slate-900 placeholder:text-slate-400 outline-none font-medium"
+          value={newSkillName}
+          onChange={(e) => setNewSkillName(e.target.value)}
+        />
+        <button 
+          onClick={addSkill}
+          className="bg-slate-900 hover:bg-slate-800 text-white px-8 rounded-2xl font-bold transition-all flex items-center gap-2"
+        >
+          <Plus size={20} /> Unlock
+        </button>
       </div>
 
-      {/* SKILL GRID */}
+      {/* GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        
-        {skills.length === 0 && !loading && (
-          <div className="col-span-full text-center py-12 border-2 border-dashed border-gray-800 rounded-xl">
-            <Trophy className="mx-auto text-gray-600 mb-3" size={48} />
-            <p className="text-gray-500">No skills unlocked yet.</p>
-          </div>
-        )}
-
         {skills.map(skill => {
           const progressPercent = Math.min((skill.current_xp / skill.next_level_xp) * 100, 100)
-          
           return (
-            <div key={skill.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-6 relative group hover:border-teal-500/30 transition-all">
-              
-              {/* Delete Button (Hidden until hover) */}
-              <button 
-                onClick={() => deleteSkill(skill.id)}
-                className="absolute top-4 right-4 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Trash2 size={18} />
-              </button>
+            <div key={skill.id} className="bg-white border border-slate-200 rounded-3xl p-6 relative group hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <button onClick={() => deleteSkill(skill.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18} /></button>
 
-              {/* Header */}
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 font-bold text-xl">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center font-bold text-2xl shadow-sm">
                   {skill.level}
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">{skill.name}</h3>
-                  <div className="flex items-center gap-1 text-xs text-teal-400 font-medium">
-                    <Zap size={12} fill="currentColor" />
-                    <span>{skill.current_xp} XP</span>
+                  <h3 className="text-lg font-bold text-slate-900">{skill.name}</h3>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md w-fit mt-1">
+                    <Zap size={12} fill="currentColor" /> {skill.current_xp} XP
                   </div>
                 </div>
               </div>
 
-              {/* Progress Bar */}
               <div className="space-y-2">
-                <div className="flex justify-between text-xs text-gray-500 font-medium">
+                <div className="flex justify-between text-xs font-semibold text-slate-400">
                   <span>Progress</span>
-                  <span>{skill.next_level_xp - skill.current_xp} XP to next lvl</span>
+                  <span>{skill.next_level_xp - skill.current_xp} XP to Lvl {skill.level + 1}</span>
                 </div>
-                <div className="h-3 w-full bg-gray-950 rounded-full overflow-hidden border border-gray-800">
-                  <div 
-                    className="h-full bg-linear-to-r from-teal-600 to-emerald-400 rounded-full transition-all duration-1000 ease-out"
-                    style={{ width: `${progressPercent}%` }}
-                  />
+                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-100">
+                  <div className="h-full bg-linear-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-1000 ease-out" style={{ width: `${progressPercent}%` }} />
                 </div>
               </div>
-
             </div>
           )
         })}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { X, Loader2, BookOpen } from 'lucide-react'
 
@@ -8,107 +8,65 @@ interface CreateNoteModalProps {
   isOpen: boolean
   onClose: () => void
   onNoteAdded: () => void
+  initialData?: { topic: string, concept: string, details: string } | null
 }
 
-export default function CreateNoteModal({ isOpen, onClose, onNoteAdded }: CreateNoteModalProps) {
+export default function CreateNoteModal({ isOpen, onClose, onNoteAdded, initialData }: CreateNoteModalProps) {
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    topic: '',
-    concept: '',
-    details: ''
-  })
+  const [formData, setFormData] = useState({ topic: '', concept: '', details: '' })
+
+  useEffect(() => {
+    if (isOpen && initialData) setFormData(initialData)
+    else if (isOpen && !initialData) setFormData({ topic: '', concept: '', details: '' })
+  }, [isOpen, initialData])
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-
+    e.preventDefault(); setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-
-    const newNote = {
-      user_id: user?.id,
-      topic: formData.topic,
-      concept: formData.concept,
-      details: formData.details
-    }
-
-    const { error } = await supabase.from('knowledge').insert([newNote])
-
+    const { error } = await supabase.from('knowledge').insert([{ ...formData, user_id: user?.id }])
     setLoading(false)
-
-    if (error) {
-      alert('Error saving note: ' + error.message)
-    } else {
-      onNoteAdded()
-      onClose()
-      setFormData({ topic: '', concept: '', details: '' })
-    }
+    if (!error) { onNoteAdded(); onClose(); setFormData({ topic: '', concept: '', details: '' }) }
+    else alert(error.message)
   }
 
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-gray-900 border border-gray-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden scale-100 animate-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-gray-900/50">
-          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <BookOpen size={18} className="text-teal-400" />
-            Add Knowledge
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
-            <X size={20} />
+        <div className="flex items-center justify-between px-8 py-6 border-b border-slate-100">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <BookOpen size={20} className="text-indigo-600" />
+              {initialData ? 'Save Concept' : 'Add Knowledge'}
+            </h2>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+            <X size={18} />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          <div className="grid grid-cols-2 gap-5">
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Topic</label>
-              <input 
-                type="text" 
-                required
-                placeholder="e.g. React"
-                className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-2 text-white focus:border-teal-500 outline-none"
-                value={formData.topic}
-                onChange={(e) => setFormData({...formData, topic: e.target.value})}
-              />
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Topic</label>
+              <input type="text" required placeholder="e.g. React" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all" value={formData.topic} onChange={(e) => setFormData({...formData, topic: e.target.value})} />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Concept (Front)</label>
-              <input 
-                type="text" 
-                required
-                placeholder="e.g. useEffect Hook"
-                className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-2 text-white focus:border-teal-500 outline-none"
-                value={formData.concept}
-                onChange={(e) => setFormData({...formData, concept: e.target.value})}
-              />
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Concept</label>
+              <input type="text" required placeholder="e.g. Hooks" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all" value={formData.concept} onChange={(e) => setFormData({...formData, concept: e.target.value})} />
             </div>
           </div>
-
           <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-500 uppercase">Details (Back of Card)</label>
-            <textarea 
-              required
-              rows={5}
-              placeholder="Explain the concept in your own words..."
-              className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-2 text-white focus:border-teal-500 outline-none resize-none"
-              value={formData.details}
-              onChange={(e) => setFormData({...formData, details: e.target.value})}
-            />
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Details</label>
+            <textarea required rows={6} placeholder="Explain the concept..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all resize-none" value={formData.details} onChange={(e) => setFormData({...formData, details: e.target.value})} />
           </div>
-
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
-          >
+          <button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2">
             {loading ? <Loader2 className="animate-spin" /> : 'Save Note'}
           </button>
-
         </form>
       </div>
     </div>
