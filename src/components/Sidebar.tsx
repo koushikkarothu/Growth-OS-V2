@@ -7,6 +7,9 @@ import {
   BarChart2, Book, BrainCircuit, Settings, LogOut 
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+// 1. Add these imports
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabaseClient'
 
 const menuItems = [
   { name: 'Dashboard', icon: LayoutGrid, href: '/' },
@@ -20,6 +23,13 @@ const menuItems = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter() // Get router
+
+  // 2. Add Logout Function
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   return (
     <aside className="w-72 bg-white border-r border-slate-200 h-screen fixed left-0 top-0 p-6 flex flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
@@ -68,6 +78,14 @@ export default function Sidebar() {
         <button className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-all font-medium text-sm">
           <Settings size={18} />
           <span>Settings</span>
+        </button>
+        {/* LOGOUT BUTTON */}
+        <button 
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-red-400 hover:bg-red-50 hover:text-red-500 transition-all font-medium text-sm"
+        >
+          <LogOut size={18} />
+          <span>Sign Out</span>
         </button>
       </div>
     </aside>
