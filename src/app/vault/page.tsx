@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
-import { Search, Plus, Trash2, Sparkles, Loader2, BookOpen } from 'lucide-react'
+import { Search, Plus, Trash2, Sparkles, Loader2 } from 'lucide-react'
 import CreateNoteModal from '@/components/CreateNoteModal'
 
 interface Note { id: number; topic: string; concept: string; details: string }
@@ -35,17 +35,7 @@ export default function VaultPage() {
   }
 
   async function generateAiQuiz() {
-    const topic = prompt("What topic to test?"); if (!topic) return
-    setGenerating(true)
-    try {
-      const relevantNotes = notes.filter(n => n.topic.toLowerCase().includes(topic.toLowerCase())).map(n => n.details).join("\n")
-      if (!relevantNotes) { alert("No notes found!"); setGenerating(false); return }
-      const response = await fetch('/api/ai-quiz', { method: 'POST', body: JSON.stringify({ topic, notes: relevantNotes }) })
-      const newCards = await response.json()
-      const { data: { user } } = await supabase.auth.getUser()
-      const toInsert = newCards.map((card: any) => ({ user_id: user?.id, topic: topic + " (AI)", concept: card.concept, details: card.details }))
-      await supabase.from('knowledge').insert(toInsert); fetchNotes()
-    } catch (e) { alert("AI Error") } finally { setGenerating(false) }
+    alert("Use the Daily Learn tab for quizzes!"); 
   }
 
   const filteredNotes = notes.filter(n => n.topic.toLowerCase().includes(search.toLowerCase()) || n.concept.toLowerCase().includes(search.toLowerCase()))
@@ -56,14 +46,14 @@ export default function VaultPage() {
 
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">Knowledge Vault</h1>
-          <p className="text-slate-500 font-medium">Your personal library of concepts.</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Knowledge Vault</h1>
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Your personal library of concepts.</p>
         </div>
         <div className="flex gap-3">
-            <button onClick={generateAiQuiz} disabled={generating} className="bg-purple-100 hover:bg-purple-200 text-purple-700 px-5 py-2.5 rounded-xl font-bold transition-colors flex items-center gap-2">
+            <button onClick={generateAiQuiz} disabled={generating} className="bg-purple-100 dark:bg-purple-900/20 hover:bg-purple-200 dark:hover:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-5 py-2.5 rounded-xl font-bold transition-colors flex items-center gap-2">
               {generating ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />} AI Quiz
             </button>
-            <button onClick={() => setIsModalOpen(true)} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold transition-colors flex items-center gap-2 shadow-lg shadow-slate-200">
+            <button onClick={() => setIsModalOpen(true)} className="bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 px-5 py-2.5 rounded-xl font-bold transition-colors flex items-center gap-2 shadow-lg shadow-slate-200 dark:shadow-none">
               <Plus size={18} /> Add Note
             </button>
         </div>
@@ -71,18 +61,18 @@ export default function VaultPage() {
 
       <div className="relative mb-8">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-        <input type="text" placeholder="Search your brain..." className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-medium shadow-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input type="text" placeholder="Search your brain..." className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl py-4 pl-12 pr-4 text-slate-900 dark:text-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-900/30 outline-none transition-all font-medium shadow-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {filteredNotes.map(note => (
-          <div key={note.id} className="group bg-white border border-slate-200 hover:border-indigo-200 hover:shadow-md p-6 rounded-3xl transition-all">
+          <div key={note.id} className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-md p-6 rounded-3xl transition-all">
             <div className="flex justify-between items-start mb-4">
-              <span className="bg-indigo-50 text-indigo-600 text-[10px] px-2 py-1 rounded-md border border-indigo-100 uppercase font-bold tracking-wider">{note.topic}</span>
-              <button onClick={() => deleteNote(note.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={16} /></button>
+              <span className="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 text-[10px] px-2 py-1 rounded-md border border-indigo-100 dark:border-indigo-900/30 uppercase font-bold tracking-wider">{note.topic}</span>
+              <button onClick={() => deleteNote(note.id)} className="text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={16} /></button>
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-3">{note.concept}</h3>
-            <p className="text-slate-500 text-sm leading-relaxed whitespace-pre-wrap">{note.details}</p>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-3">{note.concept}</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed whitespace-pre-wrap">{note.details}</p>
           </div>
         ))}
       </div>
