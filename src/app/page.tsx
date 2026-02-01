@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [editingTask, setEditingTask] = useState<any>(null)
   const [userRank, setUserRank] = useState('Rookie Scout')
   const [greeting, setGreeting] = useState('Good Morning')
+  const [totalXP, setTotalXP] = useState(0)
   
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null)
 
@@ -45,20 +46,16 @@ export default function Dashboard() {
   }, [])
 
   async function fetchProfile() {
-    // 1. Fetch all skills to sum up XP
     const { data: skills } = await supabase.from('skills').select('current_xp')
-    
-    // 2. Calculate Total XP
-    const totalXP = skills?.reduce((sum, skill) => sum + skill.current_xp, 0) || 0
-    
-    // 3. Determine Rank
-    let rank = 'Rookie Scout'
-    if (totalXP > 7000) rank = 'Grandmaster'
-    else if (totalXP > 3500) rank = 'Commander'
-    else if (totalXP > 1500) rank = 'Elite Vanguard'
-    else if (totalXP > 500) rank = 'Operator'
+    const total = skills?.reduce((sum, skill) => sum + skill.current_xp, 0) || 0
+    setTotalXP(total) // <--- Store it in state
 
-    // 4. Set State (and optional: save to DB if you want persistence)
+    let rank = 'Rookie Scout'
+    if (total > 7000) rank = 'Grandmaster'
+    else if (total > 3500) rank = 'Commander'
+    else if (total > 1500) rank = 'Elite Vanguard'
+    else if (total > 500) rank = 'Operator'
+
     setUserRank(rank)
     
     // Optional: Save to DB so other pages can see it without recalculating
@@ -249,9 +246,14 @@ export default function Dashboard() {
 
       {/* STATS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-5">
-          <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500"><Target size={28} /></div>
-          <div><p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Current Rank</p><p className="text-2xl font-bold text-slate-900">{userRank}</p></div>
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-5 relative overflow-hidden group">
+          <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><Target size={28} /></div>
+          <div><p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Current Rank</p>
+          <div className="flex items-baseline gap-2">
+              <p className="text-2xl font-bold text-slate-900">{userRank}</p>
+              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{totalXP} XP</span>
+            </div>
+          </div>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-5">
           <div className="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-500"><Flame size={28} /></div>
