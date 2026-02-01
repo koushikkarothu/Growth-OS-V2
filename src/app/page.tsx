@@ -8,7 +8,7 @@ import {
   ArrowUpRight, Target, CalendarDays, Plus, Zap
 } from 'lucide-react'
 import CreateTaskModal from '@/components/CreateTaskModal'
-import { format, subDays, isSameDay, parseISO, differenceInCalendarDays, startOfWeek, endOfWeek } from 'date-fns' // Added differenceInCalendarDays
+import { format, subDays, isSameDay, parseISO, differenceInCalendarDays, startOfWeek, endOfWeek } from 'date-fns'
 import { cn } from '@/lib/utils'
 
 interface Task {
@@ -59,7 +59,6 @@ export default function Dashboard() {
     setUserRank(rank)
   }
 
-  
   async function fetchData() {
     const today = new Date()
     const todayStr = format(today, 'yyyy-MM-dd')
@@ -74,7 +73,6 @@ export default function Dashboard() {
 
     if (tasksData) {
       tasksData.forEach((t: any) => {
-        // --- 🧠 UNIVERSAL FRESHNESS CHECK ---
         let calculatedStreak = t.current_streak
         let status: 'active' | 'warning' | 'broken' = 'active'
         
@@ -85,29 +83,17 @@ export default function Dashboard() {
             const lastDate = parseISO(t.last_completed_at)
             const diff = differenceInCalendarDays(today, lastDate)
 
-            // CASE 1: DAILY HABITS (Frequency = 7)
             if (t.frequency_goal === 7) {
-                if (diff === 0) status = 'active'         // Done today
-                else if (diff === 1) status = 'active'    // Done yesterday
-                else if (diff === 2) status = 'warning'   // Missed 1 day (Warning)
-                else { 
-                    status = 'broken'                     // Missed >1 day (Reset)
-                    calculatedStreak = 0 
-                }
+                if (diff === 0) status = 'active'
+                else if (diff === 1) status = 'active'
+                else if (diff === 2) status = 'warning'
+                else { status = 'broken'; calculatedStreak = 0 }
             } 
-            // CASE 2: WEEKLY HABITS (Frequency < 7)
             else {
-                // If you haven't touched a weekly habit in > 8 days, the chain is broken.
-                // (Weekly habits usually require at least 1 action per week)
-                if (diff > 8) {
-                    status = 'broken'
-                    calculatedStreak = 0
-                }
-                // Note: If diff is 4 days, it's still valid for a weekly habit!
+                if (diff > 8) { status = 'broken'; calculatedStreak = 0 }
             }
         }
 
-        // --- PROGRESS LOGIC ---
         let progress = 0
         if (t.time_goal_minutes > 0) {
            progress = logsData?.filter(l => l.task_id === t.id).reduce((sum, curr) => sum + (curr.duration_minutes || 0), 0) || 0
@@ -117,13 +103,7 @@ export default function Dashboard() {
            progress = uniqueDays
         }
 
-        combined.push({
-          ...t, 
-          type: 'Task', 
-          current_progress: progress, 
-          streak_status: status, 
-          current_streak: calculatedStreak // <--- Uses the audited number
-        })
+        combined.push({ ...t, type: 'Task', current_progress: progress, streak_status: status, current_streak: calculatedStreak })
       })
     }
 
@@ -145,13 +125,9 @@ export default function Dashboard() {
      const { data: { user } } = await supabase.auth.getUser()
      let xp = minutes 
      if (task.current_progress >= task.time_goal_minutes) xp = Math.floor(minutes * 1.5)
-
      await supabase.from('task_logs').insert([{ user_id: user?.id, task_id: task.id, date: today, duration_minutes: minutes, xp_earned: xp }])
-     
-     // Simple increment logic (relies on fetchData to validate streak next time)
      let newStreak = task.current_streak
      if (task.current_progress + minutes >= task.time_goal_minutes && task.current_progress < task.time_goal_minutes) newStreak += 1
-
      await supabase.from('tasks').update({ last_completed_at: today, current_streak: newStreak }).eq('id', task.id)
      if (task.linked_skill_id) await updateSkillXP(task.linked_skill_id, xp)
      fetchData()
@@ -165,24 +141,16 @@ export default function Dashboard() {
   }
 
   async function toggleComplete(task: Task) {
-    if (task.type === 'Goal') {
-      await supabase.from('goals').update({ status: 'Done' }).eq('id', Math.abs(task.id))
-      fetchData(); return
-    }
+    if (task.type === 'Goal') { await supabase.from('goals').update({ status: 'Done' }).eq('id', Math.abs(task.id)); fetchData(); return }
     const today = new Date().toISOString().split('T')[0]
     const isDoneToday = task.last_completed_at === today
-    
     if (isDoneToday) {
       await supabase.from('tasks').update({ last_completed_at: null }).eq('id', task.id)
       await supabase.from('task_logs').delete().match({ task_id: task.id, date: today })
       fetchData(); return
     }
-
-    // Logic: If streak was broken (0 calculated), resetting it to 1.
-    // If active, increment.
     let newStreak = task.current_streak + 1
     if (task.streak_status === 'broken') newStreak = 1
-
     await supabase.from('tasks').update({ last_completed_at: today, current_streak: newStreak }).eq('id', task.id)
     const { data: { user } } = await supabase.auth.getUser()
     await supabase.from('task_logs').insert([{ user_id: user?.id, task_id: task.id, date: today, duration_minutes: 0, xp_earned: 10 }])
@@ -209,59 +177,54 @@ export default function Dashboard() {
   const activeGoals = tasks.filter(t => t.type === 'Goal')
 
   return (
-    <div className="max-w-7xl mx-auto pb-20 animate-in fade-in duration-500">
+    <div className="max-w-7xl mx-auto pb-24 md:pb-20 animate-in fade-in duration-500">
       <CreateTaskModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingTask(null) }} onTaskAdded={fetchData} initialData={editingTask}/>
 
-      {/* HEADER */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
+      {/* HEADER: Stacked on Mobile, Row on Desktop */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 md:gap-4 mb-8 md:mb-10">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{greeting}, Commander.</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Ready to conquer the day?</p>
+          {/* Smaller text on mobile (text-2xl), larger on PC (md:text-3xl) */}
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{greeting}, Commander.</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium text-sm md:text-base">Ready to conquer the day?</p>
         </div>
-        <div className="flex items-center gap-4">
-           <div className="bg-white dark:bg-slate-900 px-5 py-2.5 rounded-full border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-              <CalendarDays size={18} className="text-indigo-500" />
-              {format(new Date(), 'EEEE, MMMM do')}
+        <div className="flex items-center gap-3 md:gap-4">
+           {/* Date Badge: Compact on mobile */}
+           <div className="bg-white dark:bg-slate-900 px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-2 text-xs md:text-sm font-semibold text-slate-700 dark:text-slate-300">
+              <CalendarDays size={16} className="text-indigo-500" />
+              {format(new Date(), 'MMM do')}
            </div>
-           <button onClick={() => { setEditingTask(null); setIsModalOpen(true) }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-full font-semibold shadow-lg shadow-indigo-200 dark:shadow-none transition-all flex items-center gap-2 active:scale-95">
-             <Plus size={18} /> New Mission
+           {/* New Mission Button: Full width on mobile if needed, but here kept standard */}
+           <button onClick={() => { setEditingTask(null); setIsModalOpen(true) }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 md:px-6 md:py-2.5 rounded-full font-semibold shadow-lg shadow-indigo-200 dark:shadow-none transition-all flex items-center gap-2 active:scale-95 text-sm md:text-base">
+             <Plus size={18} /> <span className="hidden md:inline">New Mission</span><span className="md:hidden">Add</span>
            </button>
         </div>
       </header>
 
-      {/* STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-5">
-          <div className="w-14 h-14 bg-amber-50 dark:bg-amber-900/20 rounded-2xl flex items-center justify-center text-amber-500"><Target size={28} /></div>
-          <div><p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Current Rank</p><div className="flex items-baseline gap-2"><p className="text-2xl font-bold text-slate-900 dark:text-white">{userRank}</p><span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">{totalXP} XP</span></div></div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-5">
-          <div className="w-14 h-14 bg-orange-50 dark:bg-orange-900/20 rounded-2xl flex items-center justify-center text-orange-500"><Flame size={28} /></div>
-          <div><p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Max Streak</p><p className="text-2xl font-bold text-slate-900 dark:text-white">{Math.max(...tasks.map(t => t.current_streak), 0)} <span className="text-sm text-slate-400">Streak</span></p></div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-5">
-          <div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center text-emerald-500"><Check size={28} /></div>
-          <div><p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Today's Focus</p><p className="text-2xl font-bold text-slate-900 dark:text-white">{Math.round((processedTasks.length / (tasks.length || 1)) * 100)}% Done</p></div>
-        </div>
+      {/* STATS: 1 col on mobile, 3 on desktop */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-10">
+        <StatCard icon={Target} color="amber" label="Current Rank" value={userRank} subValue={`${totalXP} XP`} />
+        <StatCard icon={Flame} color="orange" label="Max Streak" value={`${Math.max(...tasks.map(t => t.current_streak), 0)} Streak`} />
+        <StatCard icon={Check} color="emerald" label="Today's Focus" value={`${Math.round((processedTasks.length / (tasks.length || 1)) * 100)}% Done`} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* ACTIVE */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+        {/* ACTIVE: Takes 2 cols on PC */}
+        <div className="lg:col-span-2 space-y-4 md:space-y-6">
           <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Play size={20} className="text-indigo-600" /> Active Missions
           </h2>
           {activeTasks.length === 0 && !loading && (
-            <div className="bg-white dark:bg-slate-900 border-dashed border-2 border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center">
+            <div className="bg-white dark:bg-slate-900 border-dashed border-2 border-slate-200 dark:border-slate-800 rounded-3xl p-8 md:p-12 text-center">
                <p className="text-slate-400 font-medium">All clear for today. Great work!</p>
             </div>
           )}
           {activeTasks.map(task => (
             <TaskCard key={task.id} task={task} toggleComplete={toggleComplete} addTimeQuick={addTimeQuick} setEditingTask={setEditingTask} setIsModalOpen={setIsModalOpen} deleteTask={deleteTask} menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId} isProcessed={false} />
           ))}
+          
           {processedTasks.length > 0 && (
-             <div className="pt-8">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 pl-1">Completed / Logged Today</h3>
+             <div className="pt-6 md:pt-8">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 pl-1">Completed Today</h3>
                 <div className="space-y-4">
                    {processedTasks.map(task => (
                       <TaskCard key={task.id} task={task} toggleComplete={toggleComplete} addTimeQuick={addTimeQuick} setEditingTask={setEditingTask} setIsModalOpen={setIsModalOpen} deleteTask={deleteTask} menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId} isProcessed={true} />
@@ -271,9 +234,9 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* RIGHT COL */}
+        {/* RIGHT COL: Hidden on mobile? No, stacked below. */}
         <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+          <div className="bg-white dark:bg-slate-900 p-5 md:p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
              <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-slate-900 dark:text-white">Calendar</h3>
                 <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded">Today</span>
@@ -285,7 +248,7 @@ export default function Dashboard() {
                 ))}
              </div>
           </div>
-          <div className="bg-indigo-900 text-white p-6 rounded-3xl shadow-xl shadow-indigo-200 dark:shadow-none relative overflow-hidden">
+          <div className="bg-indigo-900 text-white p-6 rounded-3xl shadow-xl shadow-indigo-200 dark:shadow-none relative overflow-hidden hidden md:block">
              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500 rounded-full blur-3xl opacity-20 -translate-y-1/2 translate-x-1/2" />
              <h3 className="font-bold text-lg mb-1 relative z-10">Weekly Focus</h3>
              <div className="space-y-3 relative z-10 mt-4">
@@ -302,16 +265,33 @@ export default function Dashboard() {
   )
 }
 
+function StatCard({ icon: Icon, color, label, value, subValue }: any) {
+  const colors: any = { amber: "bg-amber-50 dark:bg-amber-900/20 text-amber-500", orange: "bg-orange-50 dark:bg-orange-900/20 text-orange-500", emerald: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500" }
+  return (
+    <div className="bg-white dark:bg-slate-900 p-5 md:p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-5">
+      <div className={cn("w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center transition-all", colors[color])}><Icon size={24} /></div>
+      <div>
+        <p className="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">{label}</p>
+        <div className="flex items-baseline gap-2">
+          <p className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">{value}</p>
+          {subValue && <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">{subValue}</span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function TaskCard({ task, toggleComplete, addTimeQuick, setEditingTask, setIsModalOpen, deleteTask, menuOpenId, setMenuOpenId, isProcessed }: any) {
   return (
     <div className={cn(
-      "group bg-white dark:bg-slate-900 p-6 rounded-3xl border shadow-sm transition-all hover:shadow-md relative",
+      "group bg-white dark:bg-slate-900 p-5 md:p-6 rounded-3xl border shadow-sm transition-all hover:shadow-md relative",
       task.type === 'Goal' ? "border-purple-200 dark:border-purple-900/50 bg-purple-50/30 dark:bg-purple-900/10" : "border-slate-100 dark:border-slate-800",
       task.streak_status === 'warning' && "border-orange-200 dark:border-orange-900/50 bg-orange-50/30 dark:bg-orange-900/10",
       isProcessed && "opacity-75 bg-slate-50 dark:bg-slate-800/50 hover:opacity-100"
     )}>
-      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => setMenuOpenId(menuOpenId === task.id ? null : task.id)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"><MoreVertical size={18} /></button>
+      {/* Menu Button: Always visible on mobile, hover on desktop */}
+      <div className="absolute top-4 right-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+        <button onClick={() => setMenuOpenId(menuOpenId === task.id ? null : task.id)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 md:p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"><MoreVertical size={18} /></button>
         {menuOpenId === task.id && (
           <div className="absolute right-0 top-8 w-32 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 py-1 overflow-hidden">
             <button onClick={() => { setEditingTask(task); setIsModalOpen(true); setMenuOpenId(null) }} className="w-full text-left px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">Edit</button>
@@ -320,26 +300,24 @@ function TaskCard({ task, toggleComplete, addTimeQuick, setEditingTask, setIsMod
         )}
       </div>
 
-      <div className="flex gap-5">
+      <div className="flex gap-4 md:gap-5">
         <div className="mt-1">
            {task.time_goal_minutes > 0 ? (
-              <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-colors", isProcessed ? "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-400" : "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400")}><Clock size={24} /></div>
+              <div className={cn("w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center transition-colors", isProcessed ? "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-400" : "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400")}><Clock size={20} /></div>
            ) : (
-              <button onClick={() => toggleComplete(task)} className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-all", task.type === 'Goal' ? "bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400" : (isProcessed ? "bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400" : "bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-emerald-100 hover:text-emerald-600"))}>
-                 <Check size={24} />
+              <button onClick={() => toggleComplete(task)} className={cn("w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center transition-all", task.type === 'Goal' ? "bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400" : (isProcessed ? "bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400" : "bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-emerald-100 hover:text-emerald-600"))}>
+                 <Check size={20} />
               </button>
            )}
         </div>
 
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            {task.type === 'Goal' && <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">Goal</span>}
+          <div className="flex flex-wrap items-center gap-2 mb-1">
             {task.category && <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">{task.category}</span>}
             {task.streak_status === 'warning' && <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><Flame size={10} /> Recovery</span>}
-            {isProcessed && task.time_goal_minutes > 0 && <span className="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">Logged Today</span>}
           </div>
           
-          <h3 className={cn("text-xl font-bold mb-2", isProcessed && task.time_goal_minutes === 0 ? "text-slate-400 line-through decoration-slate-300 dark:decoration-slate-600" : "text-slate-800 dark:text-slate-200")}>{task.title}</h3>
+          <h3 className={cn("text-lg md:text-xl font-bold mb-2 pr-6", isProcessed && task.time_goal_minutes === 0 ? "text-slate-400 line-through decoration-slate-300 dark:decoration-slate-600" : "text-slate-800 dark:text-slate-200")}>{task.title}</h3>
           
           <div className="space-y-3">
             {task.time_goal_minutes > 0 && (
@@ -350,16 +328,13 @@ function TaskCard({ task, toggleComplete, addTimeQuick, setEditingTask, setIsMod
                      {task.current_progress} / {task.time_goal_minutes}m {task.current_progress >= task.time_goal_minutes && "🔥"}
                   </span>
                 </div>
-                <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div className={cn("h-full rounded-full transition-all duration-500", task.current_progress >= task.time_goal_minutes ? "bg-emerald-500" : "bg-indigo-500")} style={{ width: `${Math.min((task.current_progress / task.time_goal_minutes) * 100, 100)}%` }} />
                 </div>
-                <div className="flex gap-2 mt-3">
+                <div className="flex flex-wrap gap-2 mt-3">
                    {[15, 30, 60].map(m => (
                      <button key={m} onClick={() => addTimeQuick(task, m)} className="text-xs font-bold bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors">+{m}m</button>
                    ))}
-                   {task.current_progress >= task.time_goal_minutes && (
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1.5 rounded-lg flex items-center gap-1 ml-auto"><Zap size={10} fill="currentColor"/> Bonus XP</span>
-                   )}
                 </div>
               </div>
             )}
@@ -368,7 +343,7 @@ function TaskCard({ task, toggleComplete, addTimeQuick, setEditingTask, setIsMod
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2">Weekly Goal:</span>
                 {Array.from({ length: task.frequency_goal }).map((_, i) => (
-                   <div key={i} className={cn("w-3 h-3 rounded-full transition-all", i < task.current_progress ? "bg-indigo-500 scale-110" : "bg-slate-200 dark:bg-slate-700")} />
+                   <div key={i} className={cn("w-2.5 h-2.5 rounded-full transition-all", i < task.current_progress ? "bg-indigo-500 scale-110" : "bg-slate-200 dark:bg-slate-700")} />
                 ))}
               </div>
             )}
