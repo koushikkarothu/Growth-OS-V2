@@ -4,15 +4,17 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { 
-  LayoutGrid, Calendar, Trophy, Zap, 
-  BarChart2, Book, BrainCircuit, Settings, LogOut, Mic 
+  LayoutGrid, Calendar, Trophy, Zap, Brain,
+  BarChart2, Book, BrainCircuit, Settings, LogOut, Mic, PlaySquare
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const menuItems = [
   { name: 'Dashboard', icon: LayoutGrid, href: '/' },
+  { name: 'Deep Work', icon: Brain, href: '/flow' }, // <--- ADD THIS
   { name: 'Planner', icon: Calendar, href: '/planner' },
   { name: 'Skill Tree', icon: Trophy, href: '/skills' },
+  { name: 'Learning Theater', icon: PlaySquare, href: '/theater' }, // <--- ADDED HERE
   { name: 'Active Recall', icon: Zap, href: '/recall' },
   { name: 'Analytics', icon: BarChart2, href: '/analytics' },
   { name: 'Knowledge Vault', icon: Book, href: '/vault' },

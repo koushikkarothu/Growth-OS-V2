@@ -17,7 +17,7 @@ export default function RootLayout({
   const isAuthPage = pathname === '/login' || pathname === '/signup'
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       {/* 1. suppressHydrationWarning: Fixes the red console errors 
          2. dark:bg-slate-950: Sets the dark background color 
       */}

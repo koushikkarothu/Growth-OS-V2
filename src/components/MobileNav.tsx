@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
-  LayoutGrid, Calendar, Trophy, Zap, 
+  LayoutGrid, Calendar, Trophy, Zap, PlaySquare, Brain,
   BarChart2, Book, BrainCircuit, Mic, Menu, X 
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -12,8 +12,10 @@ import { cn } from '@/lib/utils'
 // 1. Define ALL items here
 const allItems = [
   { name: 'Dashboard', icon: LayoutGrid, href: '/' },
+  { name: 'Deep Work', icon: Brain, href: '/flow' }, // <--- ADD THIS
   { name: 'Planner', icon: Calendar, href: '/planner' },
   { name: 'Skill Tree', icon: Trophy, href: '/skills' },
+  { name: 'Learning Theater', icon: PlaySquare, href: '/theater' }, // <--- ADDED HERE
   { name: 'AI Coach', icon: Mic, href: '/coach' },
   { name: 'Daily Learn', icon: BrainCircuit, href: '/learn' },
   { name: 'Active Recall', icon: Zap, href: '/recall' },
