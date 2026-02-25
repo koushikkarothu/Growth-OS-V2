@@ -8,9 +8,11 @@ import {
   BarChart2, Book, BrainCircuit, Settings, LogOut, Mic, PlaySquare
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Map } from 'lucide-react' // Add Map to imports
 
 const menuItems = [
   { name: 'Dashboard', icon: LayoutGrid, href: '/' },
+  { name: 'Master Plan', icon: Map, href: '/roadmap' }, // <--- ADDED HERE
   { name: 'Deep Work', icon: Brain, href: '/flow' }, // <--- ADD THIS
   { name: 'Planner', icon: Calendar, href: '/planner' },
   { name: 'Skill Tree', icon: Trophy, href: '/skills' },

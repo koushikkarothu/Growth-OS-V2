@@ -8,10 +8,12 @@ import {
   BarChart2, Book, BrainCircuit, Mic, Menu, X 
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Map } from 'lucide-react' // Add Map to imports
 
 // 1. Define ALL items here
 const allItems = [
   { name: 'Dashboard', icon: LayoutGrid, href: '/' },
+  { name: 'Master Plan', icon: Map, href: '/roadmap' }, // <--- ADDED HERE
   { name: 'Deep Work', icon: Brain, href: '/flow' }, // <--- ADD THIS
   { name: 'Planner', icon: Calendar, href: '/planner' },
   { name: 'Skill Tree', icon: Trophy, href: '/skills' },

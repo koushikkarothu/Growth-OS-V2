@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 
+// We use 'require' here to avoid TypeScript issues with next-pwa types
+const withPWA = require("next-pwa")({
+  dest: "public",
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === "development",
+});
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  reactStrictMode: true,
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);

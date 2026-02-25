@@ -12,7 +12,7 @@ import {
 import CreateTaskModal from '@/components/CreateTaskModal'
 import BodyTracker from '@/components/BodyTracker'
 import RecoveryMatrix from '@/components/RecoveryMatrix'
-import { format, parseISO, differenceInCalendarDays, startOfWeek, endOfWeek } from 'date-fns'
+import { format, parseISO, differenceInCalendarDays, startOfWeek, endOfWeek, startOfMonth, getDaysInMonth, getDay } from 'date-fns'
 import { cn } from '@/lib/utils'
 
 interface Task {
@@ -344,9 +344,21 @@ export default function Dashboard() {
              </div>
              <div className="grid grid-cols-7 gap-1 text-center text-sm">
                 {['M','T','W','T','F','S','S'].map((d, i) => <span key={i} className="text-slate-400 font-bold text-xs py-2">{d}</span>)}
-                {Array.from({length: 31}).map((_, i) => (
-                  <div key={i} className={cn("h-8 w-8 flex items-center justify-center rounded-full text-xs transition-colors", (i+1) === new Date().getDate() ? "bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/40" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer")}>{i+1}</div>
+                
+                {/* 1. Generate empty slots for the start of the month */}
+                {Array.from({ length: getDay(startOfMonth(new Date())) === 0 ? 6 : getDay(startOfMonth(new Date())) - 1 }).map((_, i) => (
+                  <div key={`empty-${i}`} />
                 ))}
+                
+                {/* 2. Map the actual days */}
+                {Array.from({ length: getDaysInMonth(new Date()) }).map((_, i) => {
+                  const isToday = (i + 1) === new Date().getDate();
+                  return (
+                    <div key={i} className={cn("h-8 w-8 flex items-center justify-center rounded-full text-xs transition-colors mx-auto", isToday ? "bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/40" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer")}>
+                      {i + 1}
+                    </div>
+                  )
+                })}
              </div>
           </div>
 
