@@ -45,7 +45,7 @@ export async function GET() {
         },
         body: JSON.stringify({
           app_id: APP_ID,
-          included_segments: ["Subscribed Users"],
+          included_segments: ["Active Subscriptions"],
           headings: { en: msg.title },
           contents: { en: msg.content },
           url: "https://growth-os-v2.vercel.app",
