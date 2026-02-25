@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 
+// Setup PWA with Next.js 16 support
 const withPWA = require("next-pwa")({
   dest: "public",
   register: true,
@@ -9,12 +10,9 @@ const withPWA = require("next-pwa")({
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // 🛡️ Safety Net: Ignore simple TS/Lint errors during build so you can deploy
+  // We keep TypeScript ignore here, it is still supported
   typescript: {
     ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
 };
 
