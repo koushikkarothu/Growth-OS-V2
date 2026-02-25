@@ -14,6 +14,7 @@ import BodyTracker from '@/components/BodyTracker'
 import RecoveryMatrix from '@/components/RecoveryMatrix'
 import { format, parseISO, differenceInCalendarDays, startOfWeek, endOfWeek, startOfMonth, getDaysInMonth, getDay } from 'date-fns'
 import { cn } from '@/lib/utils'
+import NotificationManager from '@/components/NotificationManager'
 
 interface Task {
   id: number; title: string; category: string; frequency_goal: number; time_goal_minutes: number
@@ -280,6 +281,9 @@ export default function Dashboard() {
            </button>
         </div>
       </header>
+
+      {/* STATS */}
+      <NotificationManager /> {/* <--- ADD THIS LINE HERE */}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-10">
         <StatCard icon={Target} color="amber" label="Current Rank" value={userRank} subValue={`${totalXP} XP`} />
