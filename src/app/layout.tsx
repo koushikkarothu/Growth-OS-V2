@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import MainLayout from '@/components/MainLayout' // We import the client component here
+import OneSignalInit from '@/components/OneSignalInit' // <--- IMPORT THIS
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 antialiased`}>
         {/* Pass the children to our new Client Layout */}
+        <OneSignalInit /> {/* <--- ADD THIS HERE */}
         <MainLayout>
           {children}
         </MainLayout>
