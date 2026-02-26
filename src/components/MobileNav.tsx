@@ -5,19 +5,19 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
   LayoutGrid, Calendar, Trophy, Zap, PlaySquare, Brain,
-  BarChart2, Book, BrainCircuit, Mic, Menu, X 
+  BarChart2, Book, BrainCircuit, Mic, Menu, X, Map 
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Map } from 'lucide-react' // Add Map to imports
+import { ThemeToggle } from '@/components/ThemeToggle' // <--- Imported
 
 // 1. Define ALL items here
 const allItems = [
   { name: 'Dashboard', icon: LayoutGrid, href: '/' },
-  { name: 'Master Plan', icon: Map, href: '/roadmap' }, // <--- ADDED HERE
-  { name: 'Deep Work', icon: Brain, href: '/flow' }, // <--- ADD THIS
+  { name: 'Master Plan', icon: Map, href: '/roadmap' },
+  { name: 'Deep Work', icon: Brain, href: '/flow' },
   { name: 'Planner', icon: Calendar, href: '/planner' },
   { name: 'Skill Tree', icon: Trophy, href: '/skills' },
-  { name: 'Learning Theater', icon: PlaySquare, href: '/theater' }, // <--- ADDED HERE
+  { name: 'Learning Theater', icon: PlaySquare, href: '/theater' },
   { name: 'AI Coach', icon: Mic, href: '/coach' },
   { name: 'Daily Learn', icon: BrainCircuit, href: '/learn' },
   { name: 'Active Recall', icon: Zap, href: '/recall' },
@@ -37,16 +37,25 @@ export default function MobileNav() {
       {/* --- THE DRAWER (FULL MENU) --- */}
       {isOpen && (
         <div className="fixed inset-0 z-[60] bg-white dark:bg-slate-950 p-6 animate-in slide-in-from-bottom-10 duration-200 flex flex-col">
+          
+          {/* DRAWER HEADER */}
           <div className="flex items-center justify-between mb-8">
             <span className="text-xl font-bold text-slate-900 dark:text-white">Menu</span>
-            <button 
-              onClick={() => setIsOpen(false)}
-              className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400"
-            >
-              <X size={20} />
-            </button>
+            
+            <div className="flex items-center gap-4">
+              {/* --- THEME TOGGLE IS HERE --- */}
+              <ThemeToggle />
+              
+              <button 
+                onClick={() => setIsOpen(false)}
+                className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
           
+          {/* DRAWER GRID */}
           <div className="grid grid-cols-2 gap-3 overflow-y-auto pb-20">
             {allItems.map((item) => {
               const isActive = pathname === item.href

@@ -474,7 +474,7 @@ function TaskCard({ task, toggleComplete, addTimeQuick, setEditingTask, setIsMod
                   <div className={cn("h-full rounded-full transition-all duration-1000 ease-out", task.current_progress >= task.time_goal_minutes ? "bg-emerald-500" : "bg-gradient-to-r from-indigo-500 to-indigo-400")} style={{ width: `${Math.min((task.current_progress / task.time_goal_minutes) * 100, 100)}%` }} />
                 </div>
                 {!isProcessed && (
-                  <div className="flex flex-wrap items-center gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0 duration-300">
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                      {/* Standard Presets */}
                      {[15, 30, 60].map(m => (
                        <button key={m} onClick={() => addTimeQuick(task, m)} className="flex-1 min-w-[3rem] text-xs font-bold bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 py-2 rounded-xl hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-500 transition-all active:scale-95 shadow-sm">+{m}m</button>
