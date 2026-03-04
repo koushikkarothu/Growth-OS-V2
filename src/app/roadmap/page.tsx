@@ -70,17 +70,17 @@ export default function RoadmapPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto pb-32 animate-in fade-in duration-700">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-16">
+    <div className="max-w-5xl mx-auto pb-32 animate-in fade-in duration-700 px-2 md:px-0">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 md:mb-16">
         <div>
-          <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
             <Map className="text-indigo-600 dark:text-indigo-400" size={36} /> Master Plan
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium mt-2 text-lg">Strategic Timeline & Critical Paths</p>
+          <p className="text-slate-500 dark:text-slate-400 font-medium mt-2 text-base md:text-lg">Strategic Timeline & Critical Paths</p>
         </div>
         <button 
           onClick={() => setIsAdding(!isAdding)}
-          className="bg-slate-900 dark:bg-white hover:bg-indigo-600 dark:hover:bg-indigo-400 text-white dark:text-slate-900 px-8 py-3 rounded-2xl font-bold transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center gap-2 active:scale-95"
+          className="bg-slate-900 dark:bg-white hover:bg-indigo-600 dark:hover:bg-indigo-400 text-white dark:text-slate-900 px-8 py-3 rounded-2xl font-bold transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center justify-center gap-2 active:scale-95 w-full md:w-auto"
         >
           <Plus size={20} /> Plot Objective
         </button>
@@ -88,7 +88,7 @@ export default function RoadmapPage() {
 
       {/* ADD FORM */}
       {isAdding && (
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl mb-12 animate-in slide-in-from-top-6">
+        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl mb-12 animate-in slide-in-from-top-6">
           <h3 className="font-bold text-xl text-slate-900 dark:text-white mb-6">Initialize New Vector</h3>
           <form onSubmit={addMilestone}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -109,7 +109,7 @@ export default function RoadmapPage() {
                     <input type="text" placeholder="Key details..." value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-5 py-4 text-sm font-semibold outline-none focus:border-indigo-500 transition-all dark:text-white" />
                 </div>
             </div>
-            <div className="flex justify-end gap-4">
+            <div className="flex flex-col md:flex-row justify-end gap-3 md:gap-4">
                 <button type="button" onClick={() => setIsAdding(false)} className="px-6 py-3 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all">Cancel</button>
                 <button type="submit" className="px-8 py-3 text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-lg hover:shadow-indigo-500/25 transition-all">Confirm Coordinates</button>
             </div>
@@ -118,11 +118,11 @@ export default function RoadmapPage() {
       )}
 
       {/* THE TIMELINE */}
-      <div className="relative pl-4 md:pl-8">
-        {/* The Timeline Line */}
-        <div className="absolute left-[43px] top-4 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800" />
+      <div className="relative pl-1 md:pl-8">
+        {/* Dynamic Timeline Line: Positioned perfectly for both Mobile and Desktop */}
+        <div className="absolute left-[25px] md:left-[71px] top-4 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800" />
 
-        <div className="space-y-12">
+        <div className="space-y-8 md:space-y-12">
           {milestones.map((m) => (
              <MilestoneCard key={m.id} milestone={m} onRefresh={fetchMilestones} />
           ))}
@@ -186,7 +186,7 @@ function MilestoneCard({ milestone, onRefresh }: { milestone: Milestone, onRefre
         return
     }
     // 🔒 VALIDATION: Start cannot be after End
-    if (isAfter(parseISO(stStart), parseISO(stEnd))) {
+    if (stStart && isAfter(parseISO(stStart), parseISO(stEnd))) {
         setErrorMsg("Start date cannot be after end date")
         return
     }
@@ -196,7 +196,7 @@ function MilestoneCard({ milestone, onRefresh }: { milestone: Milestone, onRefre
         roadmap_id: milestone.id, 
         user_id: user?.id, 
         title: stTitle,
-        start_date: stStart,
+        start_date: stStart || null, // Allow empty start date
         end_date: stEnd 
     }])
     
@@ -259,27 +259,27 @@ function MilestoneCard({ milestone, onRefresh }: { milestone: Milestone, onRefre
   return (
     <div className="relative flex items-start group">
       
-      {/* ICON NODE */}
+      {/* MOBILE-ADAPTIVE ICON NODE */}
       <div className={cn(
-        "absolute left-0 mt-8 w-20 h-20 rounded-3xl flex items-center justify-center border-[6px] border-white dark:border-slate-950 z-10 transition-all duration-300 shadow-lg",
+        "absolute left-0 mt-6 md:mt-8 w-12 h-12 md:w-20 md:h-20 rounded-2xl md:rounded-3xl flex items-center justify-center border-[4px] md:border-[6px] border-slate-50 dark:border-slate-950 z-10 transition-all duration-300 shadow-lg",
         statusColor === 'indigo' ? "bg-indigo-600 text-white" : 
         statusColor === 'emerald' ? "bg-emerald-500 text-white" :
-        statusColor === 'red' ? "bg-red-500 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-400"
+        statusColor === 'red' ? "bg-red-500 text-white" : "bg-white dark:bg-slate-800 text-slate-400"
       )}>
-        <StatusIcon size={32} />
+        <StatusIcon className="w-5 h-5 md:w-8 md:h-8" />
       </div>
 
-      {/* CARD */}
+      {/* CARD: Adjusted margins to fit nicely on mobile */}
       <div className={cn(
-        "ml-28 w-full bg-white dark:bg-slate-900 rounded-[2.5rem] border-2 transition-all duration-500 relative overflow-hidden shadow-sm hover:shadow-xl",
+        "ml-16 md:ml-28 w-full bg-white dark:bg-slate-900 rounded-3xl md:rounded-[2.5rem] border-2 transition-all duration-500 relative overflow-hidden shadow-sm hover:shadow-xl",
         getBorderColor()
       )}>
         
         {/* Header Section */}
-        <div className="p-8 pb-4">
-            <div className="flex items-start justify-between mb-4">
-                <div>
-                    <div className="flex items-center gap-3 mb-2">
+        <div className="p-5 md:p-8 pb-4">
+            <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{milestone.category}</span>
                         <div className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider", 
                             statusColor === 'red' ? "bg-red-100 text-red-600" : 
@@ -289,18 +289,18 @@ function MilestoneCard({ milestone, onRefresh }: { milestone: Milestone, onRefre
                             {statusLabel}
                         </div>
                     </div>
-                    <h3 className={cn("text-2xl font-black transition-colors", statusColor === 'emerald' ? "text-emerald-700 dark:text-emerald-400" : "text-slate-900 dark:text-white")}>
+                    {/* Allow the title to naturally wrap on small screens */}
+                    <h3 className={cn("text-xl md:text-2xl font-black transition-colors leading-tight", statusColor === 'emerald' ? "text-emerald-700 dark:text-emerald-400" : "text-slate-900 dark:text-white")}>
                         {milestone.title}
                     </h3>
-                    {milestone.description && <p className="text-slate-500 dark:text-slate-400 font-medium mt-2">{milestone.description}</p>}
+                    {milestone.description && <p className="text-sm md:text-base text-slate-500 dark:text-slate-400 font-medium mt-2 leading-relaxed">{milestone.description}</p>}
                 </div>
                 
-                {/* Options */}
-                <div className="relative">
+                {/* Options Menu (Shrink-0 prevents it from getting squished by a long title) */}
+                <div className="relative shrink-0">
                     <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><MoreVertical size={20} className="text-slate-400" /></button>
                     {menuOpen && (
                         <div className="absolute right-0 top-10 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl z-20 py-2 animate-in zoom-in-95">
-                            {/* Logic: Can't set active if fully complete */}
                             {!isFullyComplete && milestone.status !== 'active' && 
                                 <button onClick={() => updateStatus('active')} className="w-full text-left px-5 py-3 text-xs font-bold text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-700">Set Active</button>
                             }
@@ -321,7 +321,7 @@ function MilestoneCard({ milestone, onRefresh }: { milestone: Milestone, onRefre
                     <span>Execution Status</span>
                     <span>{progress}%</span>
                 </div>
-                <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-2 md:h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div 
                         className={cn("h-full transition-all duration-1000 ease-out rounded-full", statusColor === 'emerald' ? "bg-emerald-500" : "bg-indigo-600")} 
                         style={{ width: `${progress}%` }} 
@@ -340,24 +340,24 @@ function MilestoneCard({ milestone, onRefresh }: { milestone: Milestone, onRefre
                    <div className={cn("text-xs font-bold px-3 py-1 rounded-lg uppercase tracking-wider", isFullyComplete ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300")}>
                       {completedSub} / {totalSub} Steps
                    </div>
-                   {errorMsg && <span className="text-xs text-red-500 font-bold flex items-center gap-1"><AlertTriangle size={12} /> {errorMsg}</span>}
+                   {errorMsg && <span className="text-xs text-red-500 font-bold flex items-center gap-1"><AlertTriangle size={12} /> <span className="hidden md:inline">{errorMsg}</span></span>}
                 </div>
                 {isExpanded ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
             </button>
             
             {isExpanded && (
-                <div className="p-6 pt-2 animate-in slide-in-from-top-2">
+                <div className="p-4 md:p-6 pt-2 animate-in slide-in-from-top-2">
                     {/* Subtasks List */}
                     <div className="space-y-3 mb-6">
                         {milestone.subtasks?.map(sub => {
                             const isSubOverdue = sub.end_date ? isAfter(new Date(), parseISO(sub.end_date)) && !sub.is_completed : false
                             
                             return (
-                                <div key={sub.id} className="flex items-center gap-4 group/sub p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all">
+                                <div key={sub.id} className="flex items-start md:items-center gap-3 md:gap-4 group/sub p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all">
                                     <button 
                                         onClick={() => toggleSubtask(sub)}
                                         className={cn(
-                                            "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0",
+                                            "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0 mt-0.5 md:mt-0",
                                             sub.is_completed ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-300 dark:border-slate-600 hover:border-indigo-500"
                                         )}
                                     >
@@ -365,47 +365,52 @@ function MilestoneCard({ milestone, onRefresh }: { milestone: Milestone, onRefre
                                     </button>
                                     
                                     <div className="flex-1">
-                                       <div className={cn("text-sm font-semibold transition-all", sub.is_completed ? "text-emerald-600 dark:text-emerald-400" : "text-slate-700 dark:text-slate-200")}>
+                                       <div className={cn("text-sm font-semibold transition-all leading-tight", sub.is_completed ? "text-emerald-600 dark:text-emerald-400" : "text-slate-700 dark:text-slate-200")}>
                                            {sub.title}
                                        </div>
                                        {sub.end_date && (
-                                           <div className="flex items-center gap-2 mt-1">
+                                           <div className="flex items-center gap-2 mt-1.5 md:mt-1">
                                               <span className={cn("text-[10px] font-bold uppercase tracking-wider", isSubOverdue ? "text-red-500" : "text-slate-400")}>
-                                                {format(parseISO(sub.start_date || new Date().toISOString()), 'MMM d')} - {format(parseISO(sub.end_date), 'MMM d')}
+                                                {sub.start_date ? `${format(parseISO(sub.start_date), 'MMM d')} - ` : ''}{format(parseISO(sub.end_date), 'MMM d')}
                                               </span>
                                               {isSubOverdue && <span className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 rounded">LATE</span>}
                                            </div>
                                        )}
                                     </div>
 
-                                    <button onClick={() => deleteSubtask(sub.id)} className="opacity-0 group-hover/sub:opacity-100 text-slate-300 hover:text-red-500 transition-all p-2"><Trash2 size={16} /></button>
+                                    <button onClick={() => deleteSubtask(sub.id)} className="opacity-100 md:opacity-0 group-hover/sub:opacity-100 text-slate-300 hover:text-red-500 transition-all p-2"><Trash2 size={16} /></button>
                                 </div>
                             )
                         })}
                     </div>
 
-                    {/* Add Subtask Form */}
+                    {/* Add Subtask Form - Reworked for Mobile Grids */}
                     {!isFullyComplete && (
-                        <form onSubmit={addSubtask} className="flex flex-col md:flex-row gap-3 items-start md:items-center bg-slate-100 dark:bg-slate-800/50 p-3 rounded-2xl">
+                        <form onSubmit={addSubtask} className="flex flex-col gap-3 bg-slate-100 dark:bg-slate-800/50 p-4 rounded-2xl">
                             <input 
                                 type="text" 
                                 placeholder="New Step..." 
                                 value={stTitle} 
                                 onChange={e => setStTitle(e.target.value)} 
-                                className="flex-1 bg-transparent px-2 text-sm font-medium outline-none text-slate-700 dark:text-white placeholder:text-slate-400"
+                                className="w-full bg-transparent border-b border-slate-200 dark:border-slate-700 pb-2 text-sm font-medium outline-none text-slate-700 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 transition-colors"
                             />
-                            <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded-lg px-2 py-1 border border-slate-200 dark:border-slate-700">
-                                    <span className="text-[10px] font-bold text-slate-400">START</span>
-                                    <input type="date" value={stStart} onChange={e => setStStart(e.target.value)} className="bg-transparent text-xs font-bold text-slate-600 dark:text-slate-300 outline-none w-24" required />
+                            
+                            {/* Dates Container - Wraps safely on phone */}
+                            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 mt-2">
+                                <div className="flex items-center gap-2 flex-1 bg-white dark:bg-slate-900 rounded-lg px-3 py-2 border border-slate-200 dark:border-slate-700">
+                                    <span className="text-[10px] font-bold text-slate-400 w-10">START</span>
+                                    <input type="date" value={stStart} onChange={e => setStStart(e.target.value)} className="bg-transparent text-xs font-bold text-slate-600 dark:text-slate-300 outline-none w-full" />
                                 </div>
-                                <ArrowRight size={12} className="text-slate-400" />
-                                <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded-lg px-2 py-1 border border-slate-200 dark:border-slate-700">
-                                    <span className="text-[10px] font-bold text-slate-400">DUE</span>
-                                    <input type="date" value={stEnd} onChange={e => setStEnd(e.target.value)} className="bg-transparent text-xs font-bold text-slate-600 dark:text-slate-300 outline-none w-24" required />
+                                
+                                <ArrowRight size={16} className="hidden md:block text-slate-400 shrink-0" />
+                                
+                                <div className="flex items-center gap-2 flex-1 bg-white dark:bg-slate-900 rounded-lg px-3 py-2 border border-slate-200 dark:border-slate-700">
+                                    <span className="text-[10px] font-bold text-slate-400 w-10">DUE</span>
+                                    <input type="date" value={stEnd} onChange={e => setStEnd(e.target.value)} className="bg-transparent text-xs font-bold text-slate-600 dark:text-slate-300 outline-none w-full" required />
                                 </div>
+                                
+                                <button type="submit" disabled={!stTitle || !stEnd} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold uppercase disabled:opacity-50 transition-all shadow-md mt-2 md:mt-0">Add</button>
                             </div>
-                            <button type="submit" disabled={!stTitle || !stEnd} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase disabled:opacity-50 transition-all shadow-md">Add</button>
                         </form>
                     )}
                 </div>
