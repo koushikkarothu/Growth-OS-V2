@@ -17,6 +17,7 @@ export default function TheaterPage() {
   const [playingVideo, setPlayingVideo] = useState<Video | null>(null)
   const [notes, setNotes] = useState('')
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
 
   // Forms
   const [isAddingPlaylist, setIsAddingPlaylist] = useState(false)
@@ -133,12 +134,39 @@ export default function TheaterPage() {
   }
 
   // --- GEMINI EXTRACTOR LOGIC ---
-  const executeGeminiExtraction = () => {
-      const prompt = `I am currently studying "${activePlaylist?.title}".\n\nPlease watch this video: https://youtube.com/watch?v=${playingVideo?.youtube_id}\n\nTask:\n1. Provide a comprehensive summary of the key concepts discussed.\n2. Extract any important rules, formulas, or syntax.\n3. Generate 5 Active Recall flashcard questions based on this video.\n\nFormat your response in clean Markdown.`
+  // --- GEMINI EXTRACTOR LOGIC ---
+  const executeGeminiExtraction = async () => {
+      if (!playingVideo || isAnalyzing) return;
       
-      navigator.clipboard.writeText(prompt)
-      alert("AI Prompt copied to clipboard! Opening Gemini...")
-      window.open('https://gemini.google.com/', '_blank')
+      setIsAnalyzing(true);
+      
+      // Give the user visual feedback immediately
+      const loadingMessage = "\n\n> 🤖 *Gemini is analyzing the video transcript...*\n";
+      setNotes(prev => prev + loadingMessage);
+
+      try {
+          const res = await fetch('/api/analyze-video', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ videoId: playingVideo.youtube_id })
+          });
+          
+          const data = await res.json();
+          
+          if (res.ok && data.analysis) {
+              // Replace the loading message with the actual AI data
+              const cleanedNotes = notes.replace(loadingMessage, '');
+              const newNotes = cleanedNotes + (cleanedNotes ? '\n\n' : '') + "### 🤖 AI Analysis\n" + data.analysis;
+              handleNotesChange(newNotes);
+          } else {
+              setNotes(prev => prev.replace(loadingMessage, '\n\n> ⚠️ *Error: ' + (data.error || "Analysis failed") + '*\n'));
+              alert(data.error || "Analysis failed.");
+          }
+      } catch (e) {
+          setNotes(prev => prev.replace(loadingMessage, '\n\n> ⚠️ *Error: Failed to connect to AI server.*\n'));
+      }
+      
+      setIsAnalyzing(false);
   }
 
   const openTheater = (video: Video) => {
@@ -310,10 +338,17 @@ export default function TheaterPage() {
                   </div>
                   
                   {/* GEMINI BUTTON */}
-                  <button onClick={executeGeminiExtraction} className="flex items-center gap-2 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white border border-indigo-500/30 px-3 py-1.5 rounded-lg text-xs font-bold transition-all group">
-                     <Bot size={14} />
-                     <span className="hidden xl:inline group-hover:block">Extract with Gemini</span>
-                     <Copy size={12} className="opacity-50" />
+                  {/* GEMINI BUTTON */}
+                  <button 
+                      onClick={executeGeminiExtraction} 
+                      disabled={isAnalyzing}
+                      className={cn(
+                          "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all group",
+                          isAnalyzing ? "bg-indigo-600/50 text-indigo-300 cursor-not-allowed" : "bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white border border-indigo-500/30"
+                      )}
+                  >
+                      <Bot size={14} className={isAnalyzing ? "animate-pulse" : ""} />
+                      <span className="hidden xl:inline">{isAnalyzing ? "Analyzing Transcript..." : "Extract with Gemini"}</span>
                   </button>
                </div>
                

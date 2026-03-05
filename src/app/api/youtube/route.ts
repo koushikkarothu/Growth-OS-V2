@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import ytpl from 'ytpl';
 
 export async function POST(req: Request) {
   try {
     const { url } = await req.json();
+    const API_KEY = process.env.YOUTUBE_API_KEY;
 
     let listId = null;
     let videoId = null;
@@ -19,35 +19,38 @@ export async function POST(req: Request) {
         const shortMatch = url.match(/youtu\.be\/([^#\&\?]+)/);
         if (shortMatch) {
             videoId = shortMatch[1];
-        } else {
-            const shortsMatch = url.match(/shorts\/([^#\&\?]+)/);
-            if (shortsMatch) videoId = shortsMatch[1];
         }
     }
 
-    // 2. ATTEMPT: Scrape the full playlist
-    if (listId && ytpl.validateID(listId)) {
+    // 2. THE VIP METHOD: Official YouTube API for Playlists
+    if (listId && API_KEY) {
       try {
-        const playlist = await ytpl(listId, { limit: 50 }); 
-        
-        if (playlist.items && playlist.items.length > 0) {
-           const videos = playlist.items.map(item => ({
-             title: item.title,
-             youtube_id: item.id,
-           }));
-           return NextResponse.json({ isPlaylist: true, title: playlist.title, videos });
+        // Fetch up to 50 items from the playlist
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${listId}&key=${API_KEY}`);
+        const data = await res.json();
+
+        if (data.items && data.items.length > 0) {
+           // Filter out deleted or private videos from the list
+           const videos = data.items
+             .filter((item: any) => item.snippet.title !== 'Private video' && item.snippet.title !== 'Deleted video')
+             .map((item: any) => ({
+               title: item.snippet.title,
+               youtube_id: item.snippet.resourceId.videoId,
+             }));
+
+           return NextResponse.json({ isPlaylist: true, title: "Imported Curriculum", videos });
+        } else if (data.error) {
+           console.error("YouTube API Error:", data.error.message);
         }
-      } catch (err: any) {
-        console.error("Playlist Scrape Error:", err.message);
-        // DO NOT RETURN. Let it fall through to the single video fallback!
+      } catch (err) {
+        console.error("Failed to fetch from official API.");
       }
     }
 
-    // 3. FALLBACK: Extract the single video
+    // 3. FALLBACK: Single Video Extraction (If it wasn't a playlist or the API key is missing)
     if (videoId) {
        let videoTitle = "New Learning Module";
        try {
-         // Free API to quickly grab the video title
          const noembedRes = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
          const noembedData = await noembedRes.json();
          if (noembedData.title) videoTitle = noembedData.title;
@@ -56,12 +59,12 @@ export async function POST(req: Request) {
        return NextResponse.json({ 
          isPlaylist: false, 
          videos: [{ title: videoTitle, youtube_id: videoId }],
-         warning: listId ? "Playlist was blocked by YouTube. Extracted the single video instead." : null
+         warning: (listId && !API_KEY) ? "Add YOUTUBE_API_KEY to import full playlists. Imported single video instead." : null
        });
     }
 
     // 4. TOTAL FAILURE
-    return NextResponse.json({ error: 'Could not extract any video or playlist from this URL. Please check the link.' }, { status: 400 });
+    return NextResponse.json({ error: 'Could not extract video. Check URL or API Key.' }, { status: 400 });
 
   } catch (error: any) {
     return NextResponse.json({ error: 'Internal Server Error.' }, { status: 500 });
