@@ -2,8 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { PlaySquare, Plus, ArrowLeft, Trash2, CheckCircle2, Film, Link as LinkIcon, X, Save, Bot, Copy } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { PlaySquare, Plus, ArrowLeft, Trash2, CheckCircle2, Film, Link as LinkIcon, X, Bot, Copy } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+// Initialize the Rich Text Editor (Server-Side Rendering disabled)
+const MDEditor = dynamic(
+  () => import("@uiw/react-md-editor"),
+  { ssr: false }
+);
 
 interface Playlist { id: number; title: string; description: string }
 interface Video { id: number; playlist_id: number; youtube_id: string; title: string; is_watched: boolean; notes: string }
@@ -25,6 +32,14 @@ export default function TheaterPage() {
   const [newPlDesc, setNewPlDesc] = useState('')
   const [newVidUrl, setNewVidUrl] = useState('')
   const [isProcessingUrl, setIsProcessingUrl] = useState(false)
+
+  // Quick Vocab Capture State
+  const [showVocabModal, setShowVocabModal] = useState(false)
+  const [vocabLang, setVocabLang] = useState<'en' | 'de'>('en')
+  const [vWord, setVWord] = useState(''); const [vTrans, setVTrans] = useState('')
+  const [vType, setVType] = useState('Noun'); const [vGender, setVGender] = useState('der')
+  const [vPlural, setVPlural] = useState(''); const [vConj, setVConj] = useState('')
+  const [isSavingVocab, setIsSavingVocab] = useState(false)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -58,20 +73,13 @@ export default function TheaterPage() {
     setActivePlaylist(null); fetchPlaylists()
   }
 
-  // --- THE IMPORTER ENGINE ---
-  function extractSingleYouTubeID(url: string) {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/
-    const match = url.match(regExp)
-    return (match && match[2].length === 11) ? match[2] : null
-  }
-
+  // --- YOUTUBE IMPORTER ENGINE ---
   async function processYouTubeUrl(e: React.FormEvent) {
     e.preventDefault()
     setIsProcessingUrl(true)
     const { data: { user } } = await supabase.auth.getUser()
 
     try {
-      // Send EVERYTHING to our smart backend
       const res = await fetch('/api/youtube', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -80,7 +88,6 @@ export default function TheaterPage() {
       const data = await res.json()
       
       if (res.ok && data.videos && data.videos.length > 0) {
-          // If the backend had to use the fallback, warn the user
           if (data.warning) alert(data.warning); 
           
           const insertData = data.videos.map((vid: any) => ({
@@ -127,58 +134,73 @@ export default function TheaterPage() {
         setSaveStatus('saved')
         setTimeout(() => setSaveStatus('idle'), 2000)
         
-        // Update local state array so notes persist when closing/reopening
         setVideos(videos.map(v => v.id === playingVideo.id ? { ...v, notes: text } : v))
       }
-    }, 1000) // Auto-save after 1 second of no typing
+    }, 1000)
   }
 
   // --- GEMINI EXTRACTOR LOGIC ---
-  // --- GEMINI EXTRACTOR LOGIC ---
   const executeGeminiExtraction = async () => {
-      if (!playingVideo || isAnalyzing) return;
-      
-      setIsAnalyzing(true);
-      
-      // Give the user visual feedback immediately
-      const loadingMessage = "\n\n> 🤖 *Gemini is analyzing the video transcript...*\n";
-      setNotes(prev => prev + loadingMessage);
+    if (!playingVideo || isAnalyzing) return;
+    setIsAnalyzing(true);
+    
+    const loadingMessage = "\n\n> 🤖 *Gemini is analyzing the video transcript...*\n";
+    setNotes(prev => prev + loadingMessage);
 
-      try {
-          const res = await fetch('/api/analyze-video', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ videoId: playingVideo.youtube_id })
-          });
-          
-          const data = await res.json();
-          
-          if (res.ok && data.analysis) {
-              // Replace the loading message with the actual AI data
-              const cleanedNotes = notes.replace(loadingMessage, '');
-              const newNotes = cleanedNotes + (cleanedNotes ? '\n\n' : '') + "### 🤖 AI Analysis\n" + data.analysis;
-              handleNotesChange(newNotes);
-          } else {
-              setNotes(prev => prev.replace(loadingMessage, '\n\n> ⚠️ *Error: ' + (data.error || "Analysis failed") + '*\n'));
-              alert(data.error || "Analysis failed.");
-          }
-      } catch (e) {
-          setNotes(prev => prev.replace(loadingMessage, '\n\n> ⚠️ *Error: Failed to connect to AI server.*\n'));
-      }
-      
-      setIsAnalyzing(false);
+    try {
+        const res = await fetch('/api/analyze-video', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ videoId: playingVideo.youtube_id })
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok && data.analysis) {
+            const cleanedNotes = notes.replace(loadingMessage, '');
+            const newNotes = cleanedNotes + (cleanedNotes ? '\n\n' : '') + "### 🤖 AI Analysis\n" + data.analysis;
+            handleNotesChange(newNotes);
+        } else {
+            setNotes(prev => prev.replace(loadingMessage, '\n\n> ⚠️ *Error: ' + (data.error || "Analysis failed") + '*\n'));
+            alert(data.error || "Analysis failed.");
+        }
+    } catch (e) {
+        setNotes(prev => prev.replace(loadingMessage, '\n\n> ⚠️ *Error: Failed to connect to AI server.*\n'));
+    }
+    
+    setIsAnalyzing(false);
+  }
+
+  // --- QUICK VOCAB CAPTURE LOGIC ---
+  async function saveQuickVocab(e: React.FormEvent) {
+    e.preventDefault()
+    setIsSavingVocab(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (vocabLang === 'en') {
+        await supabase.from('vocabulary').insert([{ user_id: user?.id, word: vWord, definition: vTrans }])
+    } else {
+        await supabase.from('german_vocabulary').insert([{
+            user_id: user?.id, word: vWord, translation: vTrans, word_type: vType,
+            gender: vType === 'Noun' ? vGender : null, plural_form: vPlural, conjugation: vConj
+        }])
+    }
+    
+    setIsSavingVocab(false); setShowVocabModal(false);
+    setVWord(''); setVTrans(''); setVPlural(''); setVConj('');
   }
 
   const openTheater = (video: Video) => {
       setPlayingVideo(video)
-      setNotes(video.notes || '') // Load existing notes
+      setNotes(video.notes || '')
   }
 
-  // --- VIEW 1: PLAYLIST DASHBOARD ---
+  // ============================================================================
+  // VIEW 1: PLAYLIST DASHBOARD
+  // ============================================================================
   if (!activePlaylist) {
     return (
-        // ... (Keep existing Playlist Dashboard Code) ...
-        <div className="max-w-6xl mx-auto pb-32 animate-in fade-in duration-500 px-4 md:px-8">
+      <div className="max-w-6xl mx-auto pb-32 animate-in fade-in duration-500 px-4 md:px-8">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div>
             <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white flex items-center gap-3">
@@ -214,7 +236,9 @@ export default function TheaterPage() {
     )
   }
 
-  // --- VIEW 2: INSIDE A PLAYLIST ---
+  // ============================================================================
+  // VIEW 2: INSIDE A PLAYLIST
+  // ============================================================================
   const watchedCount = videos.filter(v => v.is_watched).length
   const progress = videos.length === 0 ? 0 : Math.round((watchedCount / videos.length) * 100)
 
@@ -242,7 +266,7 @@ export default function TheaterPage() {
         </button>
       </header>
 
-      {/* 🚀 UPGRADED: Add Single Video OR Full Playlist */}
+      {/* Add Single Video OR Full Playlist */}
       <form onSubmit={processYouTubeUrl} className="flex flex-col md:flex-row gap-3 mb-10 bg-indigo-50 dark:bg-indigo-900/10 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/50">
         <div className="flex-1 relative">
           <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -264,7 +288,6 @@ export default function TheaterPage() {
             "bg-white dark:bg-slate-900 border rounded-3xl overflow-hidden transition-all group",
             video.is_watched ? "border-emerald-200 dark:border-emerald-900/50 opacity-70" : "border-slate-200 dark:border-slate-800 hover:shadow-xl hover:border-indigo-300"
           )}>
-            {/* THUMBNAIL */}
             <div className="relative aspect-video bg-slate-100 dark:bg-slate-800 overflow-hidden cursor-pointer" onClick={() => openTheater(video)}>
               <div className="absolute top-2 left-2 bg-black/70 text-white text-xs font-bold px-2 py-1 rounded-md z-10 backdrop-blur-sm">
                  Module {index + 1}
@@ -281,7 +304,6 @@ export default function TheaterPage() {
               </div>
             </div>
 
-            {/* DETAILS */}
             <div className="p-5">
               <h4 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-2 mb-4 leading-tight">
                 {video.title}
@@ -299,7 +321,9 @@ export default function TheaterPage() {
         ))}
       </div>
 
-      {/* 🎬 THEATER 2.0 (SPLIT SCREEN DOJO) */}
+      {/* ============================================================================
+          🎬 THEATER 2.0 (SPLIT SCREEN DOJO)
+          ============================================================================ */}
       {playingVideo && (
         <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col animate-in fade-in duration-300 overflow-hidden">
           
@@ -312,24 +336,30 @@ export default function TheaterPage() {
                <h3 className="text-slate-200 font-bold truncate max-w-xs lg:max-w-xl text-sm border-l border-slate-700 pl-4">{playingVideo.title}</h3>
             </div>
             
-            <button onClick={() => toggleWatched(playingVideo)} className={cn("px-4 py-2 rounded-xl text-xs md:text-sm font-bold flex items-center gap-2 transition-all", playingVideo.is_watched ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700")}>
-              <CheckCircle2 size={18} /> <span className="hidden md:inline">{playingVideo.is_watched ? 'Watched' : 'Mark Watched'}</span>
-            </button>
+            <div className="flex items-center gap-3">
+                {/* QUICK ADD VOCAB BUTTON */}
+                <button onClick={() => setShowVocabModal(true)} className="px-4 py-2 rounded-xl text-xs md:text-sm font-bold flex items-center gap-2 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white border border-indigo-500/30 transition-all">
+                    <Plus size={16} /> <span className="hidden md:inline">Quick Vocab</span>
+                </button>
+                
+                <button onClick={() => toggleWatched(playingVideo)} className={cn("px-4 py-2 rounded-xl text-xs md:text-sm font-bold flex items-center gap-2 transition-all", playingVideo.is_watched ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700")}>
+                  <CheckCircle2 size={18} /> <span className="hidden md:inline">{playingVideo.is_watched ? 'Watched' : 'Mark Watched'}</span>
+                </button>
+            </div>
           </div>
 
           {/* SPLIT LAYOUT */}
           <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
             
-            {/* LEFT: Video Player (70%) */}
+            {/* LEFT: Video Player */}
             <div className="flex-[7] bg-black p-0 lg:p-6 flex items-center justify-center relative border-b lg:border-b-0 lg:border-r border-slate-800 min-h-[30vh] lg:min-h-0">
                <div className="w-full h-full lg:rounded-2xl overflow-hidden shadow-2xl relative">
                   <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${playingVideo.youtube_id}?autoplay=1&rel=0&modestbranding=1`} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="absolute inset-0"></iframe>
                </div>
             </div>
 
-            {/* RIGHT: Intelligent Notepad & AI (30%) */}
+            {/* RIGHT: Intelligent Notepad & AI */}
             <div className="flex-[3] bg-slate-950 flex flex-col h-full relative">
-               {/* Note Header */}
                <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
                   <div className="flex items-center gap-2">
                      <span className="font-bold text-slate-200 text-sm">Deep Focus Notes</span>
@@ -337,7 +367,6 @@ export default function TheaterPage() {
                      {saveStatus === 'saved' && <span className="text-[10px] text-emerald-500 uppercase tracking-wider flex items-center gap-1"><CheckCircle2 size={10} /> Saved</span>}
                   </div>
                   
-                  {/* GEMINI BUTTON */}
                   {/* GEMINI BUTTON */}
                   <button 
                       onClick={executeGeminiExtraction} 
@@ -352,18 +381,70 @@ export default function TheaterPage() {
                   </button>
                </div>
                
-               {/* Editor Area */}
-               <div className="flex-1 p-4 relative">
-                  <textarea 
-                     value={notes}
-                     onChange={(e) => handleNotesChange(e.target.value)}
-                     placeholder="Commander, log critical concepts here. Markdown is supported. Notes auto-save to your vault."
-                     className="w-full h-full bg-transparent text-slate-300 resize-none outline-none leading-relaxed text-sm placeholder:text-slate-600"
-                  />
+               {/* RICH TEXT EDITOR */}
+               <div className="flex-1 p-0 relative bg-slate-950 overflow-hidden" data-color-mode="dark">
+                 <MDEditor 
+                    value={notes}
+                    onChange={(val) => handleNotesChange(val || '')}
+                    preview="live"
+                    className="w-full h-full border-0 !bg-transparent"
+                    height="100%"
+                    textareaProps={{
+                       placeholder: "Commander, log critical concepts here. Use the toolbar for bold, lists, and tables..."
+                    }}
+                 />
                </div>
             </div>
-
           </div>
+
+          {/* ============================================================================
+              ⚡ QUICK VOCAB CAPTURE MODAL ⚡
+              ============================================================================ */}
+          {showVocabModal && (
+              <div className="absolute inset-0 z-[200] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+                  <div className="bg-slate-900 border border-slate-700 p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl relative">
+                      <button onClick={() => setShowVocabModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white"><X size={20}/></button>
+                      
+                      <h3 className="text-xl font-black text-white mb-4">Log New Word</h3>
+                      
+                      {/* Language Toggle */}
+                      <div className="flex bg-slate-800 p-1 rounded-xl mb-6">
+                          <button onClick={() => setVocabLang('en')} className={cn("flex-1 py-2 text-sm font-bold rounded-lg transition-all", vocabLang === 'en' ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white")}>🇬🇧 English</button>
+                          <button onClick={() => setVocabLang('de')} className={cn("flex-1 py-2 text-sm font-bold rounded-lg transition-all", vocabLang === 'de' ? "bg-amber-500 text-slate-900" : "text-slate-400 hover:text-white")}>🇩🇪 Deutsch</button>
+                      </div>
+
+                      <form onSubmit={saveQuickVocab} className="space-y-4">
+                          {vocabLang === 'de' && (
+                              <div className="grid grid-cols-2 gap-3">
+                                  <select value={vType} onChange={e => setVType(e.target.value)} className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white outline-none">
+                                      <option>Noun</option><option>Verb</option><option>Adjective</option>
+                                  </select>
+                                  {vType === 'Noun' && (
+                                      <select value={vGender} onChange={e => setVGender(e.target.value)} className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white outline-none">
+                                          <option value="der">der (M)</option><option value="die">die (F)</option><option value="das">das (N)</option>
+                                      </select>
+                                  )}
+                              </div>
+                          )}
+
+                          <input type="text" placeholder={vocabLang === 'en' ? "Word / Phrase" : "German Word"} value={vWord} onChange={e => setVWord(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-indigo-500" required />
+                          <input type="text" placeholder={vocabLang === 'en' ? "Definition" : "English Translation"} value={vTrans} onChange={e => setVTrans(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-indigo-500" required />
+
+                          {vocabLang === 'de' && vType === 'Noun' && (
+                              <input type="text" placeholder="Plural (e.g. die Häuser)" value={vPlural} onChange={e => setVPlural(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-white outline-none focus:border-indigo-500" />
+                          )}
+                          {vocabLang === 'de' && vType === 'Verb' && (
+                              <input type="text" placeholder="Conjugation Notes" value={vConj} onChange={e => setVConj(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-white outline-none focus:border-indigo-500" />
+                          )}
+
+                          <button type="submit" disabled={isSavingVocab || !vWord || !vTrans} className="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white py-3 rounded-xl font-bold shadow-md transition-all">
+                              {isSavingVocab ? "Logging..." : "Secure to Vault"}
+                          </button>
+                      </form>
+                  </div>
+              </div>
+          )}
+
         </div>
       )}
 

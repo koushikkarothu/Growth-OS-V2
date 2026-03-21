@@ -7,12 +7,23 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(req: Request) {
   try {
-    const { videoId } = await req.json();
+    const { videoId, customPrompt } = await req.json();
 
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json({ error: "GEMINI_API_KEY is missing in your environment variables." }, { status: 500 });
     }
 
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
+
+    // --- HACK FOR AI COACH (Language Room) ---
+    // If a customPrompt is passed without a real video ID, just run the prompt directly!
+    if (customPrompt && videoId === "MOCK_ID_FOR_PROMPT") {
+        const result = await model.generateContent(customPrompt);
+        const response = await result.response;
+        return NextResponse.json({ analysis: response.text() });
+    }
+
+    // --- REGULAR VIDEO ANALYSIS CODE BELOW ---
     // 1. Fetch the Transcript
     let transcriptData;
     try {
@@ -34,8 +45,6 @@ export async function POST(req: Request) {
     }
 
     // 3. Feed it to Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
-    
     const prompt = `You are an expert tutor. Analyze this video transcript and provide a highly structured study guide.
     
     Requirements:
@@ -57,6 +66,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("AI Analysis Error:", error);
-    return NextResponse.json({ error: 'Failed to process video with AI.' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to process with AI.' }, { status: 500 });
   }
 }
