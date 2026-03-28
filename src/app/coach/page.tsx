@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { Bot, BookOpen, Target, CheckCircle2, Send, Plus, X, Search, Filter } from 'lucide-react'
+import { Bot, BookOpen, Target, CheckCircle2, Send, Plus, X, Search, Filter, Wand2, Volume2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Vocab {
@@ -20,6 +20,7 @@ export default function AICoachPage() {
   const [word, setWord] = useState(''); const [translation, setTranslation] = useState('')
   const [wordType, setWordType] = useState('Noun'); const [gender, setGender] = useState('der')
   const [plural, setPlural] = useState(''); const [conjugation, setConjugation] = useState('')
+  const [isAutoFilling, setIsAutoFilling] = useState(false) // NEW: Magic Wand State
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('')
@@ -35,7 +36,7 @@ export default function AICoachPage() {
   useEffect(() => { 
       setVocabList([]); fetchVocab();
       setSelectedWords([]); setDrillScenario(''); setUserSentence(''); setFeedback('');
-      setSearchTerm(''); setFilterType('All'); // Reset filters on swap
+      setSearchTerm(''); setFilterType('All'); 
   }, [langMode])
 
   async function fetchVocab() {
@@ -46,11 +47,59 @@ export default function AICoachPage() {
     if (data) setVocabList(data)
   }
 
-  // --- VAULT LOGIC WITH DUPLICATE PREVENTION ---
+  // --- ✨ MAGIC AUTO-FILL ENGINE ✨ ---
+  async function autoFillWord() {
+      if (!word.trim()) return alert("Commander, please type a word first to analyze it.")
+      setIsAutoFilling(true)
+
+      const customPrompt = langMode === 'de' 
+        ? `Analyze the German word "${word}". Return ONLY a raw JSON object with these exact keys: "translation" (English meaning), "word_type" ("Noun", "Verb", or "Adjective"), "gender" ("der", "die", "das", or null if not a noun), "plural" (plural form in German, or null), "conjugation" (brief conjugation notes like 'ich gehe, du gehst' or null). Do not use markdown formatting or code blocks.`
+        : `Analyze the English word "${word}". Return ONLY a raw JSON object with this exact key: "translation" (a clear, concise dictionary definition). Do not use markdown formatting or code blocks.`
+
+      try {
+          const res = await fetch('/api/analyze-video', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ videoId: "MOCK_ID_FOR_PROMPT", customPrompt })
+          })
+          const data = await res.json()
+          
+          if (data.analysis) {
+              // Clean the response in case Gemini tries to wrap it in markdown code blocks
+              const cleanJson = data.analysis.replace(/```json/g, '').replace(/```/g, '').trim();
+              const parsed = JSON.parse(cleanJson);
+              
+              if(parsed.translation) setTranslation(parsed.translation);
+              if(langMode === 'de') {
+                 if(parsed.word_type) setWordType(parsed.word_type);
+                 if(parsed.gender && parsed.word_type === 'Noun') setGender(parsed.gender);
+                 if(parsed.plural) setPlural(parsed.plural);
+                 if(parsed.conjugation) setConjugation(parsed.conjugation);
+              }
+          }
+      } catch (e) {
+          alert("Auto-fill analysis failed. The AI might be overloaded.")
+      }
+      setIsAutoFilling(false)
+  }
+
+  // --- 🔊 NATIVE AUDIO SYNTHESIS PROTOCOL ---
+  const playAudio = (text: string) => {
+      if (!window.speechSynthesis) return alert("Your browser does not support Web Speech API.")
+      
+      // Cancel any ongoing speech so they don't overlap
+      window.speechSynthesis.cancel() 
+
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = langMode === 'de' ? 'de-DE' : 'en-GB'
+      utterance.rate = 0.9 // Slightly slower for better learning comprehension
+      window.speechSynthesis.speak(utterance)
+  }
+
+  // --- VAULT LOGIC ---
   async function addWord(e: React.FormEvent) {
     e.preventDefault()
     
-    // 🛡️ ANTI-DUPLICATE PROTOCOL
     const isDuplicate = vocabList.some(v => v.word.toLowerCase().trim() === word.toLowerCase().trim())
     if (isDuplicate) {
         alert(`Commander, "${word}" is already secured in your vault.`)
@@ -92,7 +141,6 @@ export default function AICoachPage() {
       return matchesSearch && matchesFilter;
   })
 
-  // --- VISUAL MEMORY HACK (GENDER COLORS) ---
   const getGenderColor = (g?: string) => {
       if (g === 'der') return "text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400"
       if (g === 'die') return "text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400"
@@ -100,7 +148,7 @@ export default function AICoachPage() {
       return "text-slate-500 bg-slate-100 dark:bg-slate-800"
   }
 
-  // --- GEMINI AI DRILL PROTOCOL (Remains Unchanged) ---
+  // --- GEMINI AI DRILL PROTOCOL ---
   async function generateChallenge() {
     if (selectedWords.length === 0) return alert("Select at least 1 word for the drill.")
     setIsDrilling(true); setFeedback(''); setUserSentence('');
@@ -179,7 +227,6 @@ export default function AICoachPage() {
       {activeTab === 'vault' && (
         <div className="animate-in slide-in-from-left-4">
           
-          {/* SEARCH, FILTER, AND ADD BAR */}
           <div className="flex flex-col md:flex-row gap-4 mb-8">
               <button onClick={() => setIsAdding(!isAdding)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md flex items-center justify-center gap-2 md:w-auto">
                 <Plus size={20} /> Add Word
@@ -202,54 +249,76 @@ export default function AICoachPage() {
                         <option value="Noun">Nouns</option>
                         <option value="Verb">Verbs</option>
                         <option value="Adjective">Adjectives</option>
+                        <option value="Adverb">Adverbs</option>
+                        <option value="Other">Others</option>
                     </select>
                  </div>
               )}
           </div>
 
           {isAdding && (
-            <form onSubmit={addWord} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl mb-10 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-top-4">
+            <form onSubmit={addWord} className="bg-indigo-50/50 dark:bg-slate-900 p-6 rounded-3xl border border-indigo-100 dark:border-slate-800 shadow-lg mb-10 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-top-4">
+              
+              <div className="md:col-span-2 relative">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{langMode === 'en' ? 'Word / Phrase' : 'German Word'}</label>
+                <div className="relative mt-1">
+                    <input type="text" value={word} onChange={e => setWord(e.target.value)} placeholder={langMode === 'en' ? "e.g. Ubiquitous" : "e.g. Fernweh"} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-4 pr-14 py-3 text-lg font-black outline-none focus:border-indigo-500 dark:text-white shadow-sm" required />
+                    
+                    {/* ✨ THE MAGIC WAND BUTTON ✨ */}
+                    <button 
+                        type="button" 
+                        onClick={autoFillWord}
+                        disabled={isAutoFilling || !word}
+                        title="AI Auto-Fill Details"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white dark:bg-indigo-900/50 dark:text-indigo-400 p-2 rounded-lg transition-all disabled:opacity-50"
+                    >
+                        <Wand2 size={20} className={isAutoFilling ? "animate-spin" : ""} />
+                    </button>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2 font-medium flex items-center gap-1">
+                    <Wand2 size={10} /> Type a word and click the wand to auto-fill definitions and grammar rules.
+                </p>
+              </div>
+
               {langMode === 'de' && (
-                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-200 dark:border-slate-800 pt-4 mt-2">
                     <div>
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Word Type</label>
-                        <select value={wordType} onChange={e => setWordType(e.target.value)} className="w-full mt-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none dark:text-white">
-                        <option>Noun</option><option>Verb</option><option>Adjective</option>
+                        <select value={wordType} onChange={e => setWordType(e.target.value)} className="w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none dark:text-white shadow-sm">
+                        <option>Noun</option><option>Verb</option><option>Adjective</option><option>Adverb</option><option>Other</option>
                         </select>
                     </div>
                     {wordType === 'Noun' && (
                         <div>
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Article (Gender)</label>
-                        <select value={gender} onChange={e => setGender(e.target.value)} className="w-full mt-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none dark:text-white">
+                        <select value={gender} onChange={e => setGender(e.target.value)} className="w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none dark:text-white shadow-sm">
                             <option value="der">der (Masculine - Blue)</option><option value="die">die (Feminine - Red)</option><option value="das">das (Neutral - Green)</option>
                         </select>
                         </div>
                     )}
                   </div>
               )}
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{langMode === 'en' ? 'Word / Phrase' : 'German Word'}</label>
-                <input type="text" value={word} onChange={e => setWord(e.target.value)} placeholder={langMode === 'en' ? "e.g. Ubiquitous" : "e.g. Auto 🚗"} className="w-full mt-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none dark:text-white" required />
-              </div>
+              
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{langMode === 'en' ? 'Definition' : 'English Translation'}</label>
-                <input type="text" value={translation} onChange={e => setTranslation(e.target.value)} className="w-full mt-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none dark:text-white" required />
+                <input type="text" value={translation} onChange={e => setTranslation(e.target.value)} className="w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none dark:text-white shadow-sm" required />
               </div>
+
               {langMode === 'de' && wordType === 'Noun' && (
                  <div>
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Plural Form</label>
-                    <input type="text" placeholder="e.g. die Autos" value={plural} onChange={e => setPlural(e.target.value)} className="w-full mt-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium outline-none dark:text-white" />
+                    <input type="text" placeholder="e.g. die Autos" value={plural} onChange={e => setPlural(e.target.value)} className="w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium outline-none dark:text-white shadow-sm" />
                  </div>
               )}
               {langMode === 'de' && wordType === 'Verb' && (
                  <div className="md:col-span-2">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Conjugation / Notes</label>
-                    <input type="text" placeholder="e.g. ich fahre, du fährst / Perfekt: bin gefahren" value={conjugation} onChange={e => setConjugation(e.target.value)} className="w-full mt-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium outline-none dark:text-white" />
+                    <input type="text" placeholder="e.g. ich fahre, du fährst / Perfekt: bin gefahren" value={conjugation} onChange={e => setConjugation(e.target.value)} className="w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium outline-none dark:text-white shadow-sm" />
                  </div>
               )}
               <div className="md:col-span-2 flex justify-end gap-3 mt-4">
-                <button type="button" onClick={() => setIsAdding(false)} className="px-6 py-3 font-bold text-slate-500">Cancel</button>
-                <button type="submit" className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 py-3 rounded-xl font-bold shadow-lg">Save to Vault</button>
+                <button type="button" onClick={() => setIsAdding(false)} className="px-6 py-3 font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all">Cancel</button>
+                <button type="submit" disabled={isAutoFilling} className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 py-3 rounded-xl font-bold shadow-xl hover:-translate-y-1 transition-all disabled:opacity-50">Save to Vault</button>
               </div>
             </form>
           )}
@@ -260,16 +329,24 @@ export default function AICoachPage() {
               <div key={v.id} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative group hover:shadow-md transition-all">
                  <button onClick={() => deleteWord(v.id)} className="absolute top-3 right-3 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><X size={16} /></button>
                  
-                 {langMode === 'de' && (
-                     <div className="flex items-center gap-2 mb-2">
-                        <span className={cn("text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded", v.word_type === 'Noun' ? "bg-slate-100 text-slate-600" : v.word_type === 'Verb' ? "bg-emerald-100 text-emerald-600" : "bg-purple-100 text-purple-600")}>
-                          {v.word_type}
-                        </span>
-                     </div>
-                 )}
+                 <div className="flex items-center justify-between mb-2">
+                     {langMode === 'de' && (
+                         <span className={cn("text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded", v.word_type === 'Noun' ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" : v.word_type === 'Verb' ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400")}>
+                           {v.word_type}
+                         </span>
+                     )}
+                     
+                     {/* 🔊 THE AUDIO SYNTHESIS BUTTON */}
+                     <button 
+                        onClick={() => playAudio(v.word)} 
+                        title="Listen to Pronunciation"
+                        className="text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ml-auto p-1"
+                     >
+                         <Volume2 size={18} />
+                     </button>
+                 </div>
                  
                  <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                    {/* Visual Memory Hack: Gender Colors */}
                     {v.gender && <span className={cn("px-2 py-0.5 rounded text-xs uppercase tracking-wider", getGenderColor(v.gender))}>{v.gender}</span>}
                     {v.word}
                  </h3>
