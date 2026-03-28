@@ -1,111 +1,258 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { useRouter } from 'next/navigation'
-import { Eye, RotateCw, Brain } from 'lucide-react'
+import { BrainCircuit, Sparkles, ArrowRight, ArrowLeft, RefreshCcw, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-interface Note { id: number; topic: string; concept: string; details: string }
+interface Vocab {
+  id: number; word: string; translation?: string; definition?: string; 
+  word_type?: string; gender?: string; plural_form?: string; conjugation?: string;
+  mastery_level?: number;
+}
 
 export default function ActiveRecallPage() {
-  const router = useRouter()
-  const [notes, setNotes] = useState<Note[]>([])
-  const [loading, setLoading] = useState(true)
-  const [currentCard, setCurrentCard] = useState<Note | null>(null)
-  const [isRevealed, setIsRevealed] = useState(false)
+  const [langMode, setLangMode] = useState<'en' | 'de'>('de')
+  const [deck, setDeck] = useState<Vocab[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isFlipped, setIsFlipped] = useState(false)
+  
+  // AI Memory Hook State
+  const [isFetchingHook, setIsFetchingHook] = useState(false)
+  const [aiHook, setAiHook] = useState<{ emoji: string, sentence: string } | null>(null)
 
-  useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser(); if (!user) { router.push('/login'); return }
-      fetchNotes()
-    }
-    init()
-  }, [])
+  useEffect(() => { 
+      fetchDeck();
+      resetCardState();
+  }, [langMode])
 
-  async function fetchNotes() {
-    const { data } = await supabase.from('knowledge').select('*')
-    if (data && data.length > 0) {
-      setNotes(data)
-      setCurrentCard(data[Math.floor(Math.random() * data.length)])
+  async function fetchDeck() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    
+    const tableName = langMode === 'en' ? 'vocabulary' : 'german_vocabulary'
+    // Fetch words, ordering randomly or by lowest mastery first (if we use mastery later)
+    const { data } = await supabase.from(tableName).select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+    
+    if (data) {
+        // Simple shuffle for the flashcard deck
+        const shuffled = data.sort(() => 0.5 - Math.random())
+        setDeck(shuffled)
     }
-    setLoading(false)
   }
 
-  function nextCard() {
-    if (notes.length === 0) return
-    setIsRevealed(false)
-    let next = notes[Math.floor(Math.random() * notes.length)]
-    if (notes.length > 1 && next.id === currentCard?.id) {
-      next = notes[Math.floor(Math.random() * notes.length)]
-    }
-    setCurrentCard(next)
+  const resetCardState = () => {
+      setIsFlipped(false)
+      setAiHook(null)
+      setIsFetchingHook(false)
   }
+
+  const nextCard = () => {
+      if (currentIndex < deck.length - 1) {
+          setCurrentIndex(prev => prev + 1)
+          resetCardState()
+      }
+  }
+
+  const prevCard = () => {
+      if (currentIndex > 0) {
+          setCurrentIndex(prev => prev - 1)
+          resetCardState()
+      }
+  }
+
+  const getGenderColor = (g?: string) => {
+      if (g === 'der') return "text-blue-500"
+      if (g === 'die') return "text-red-500"
+      if (g === 'das') return "text-emerald-500"
+      return "text-slate-400"
+  }
+
+  // --- 🧠 THE NEURAL HOOK PROTOCOL ---
+  async function generateMemoryHook() {
+      const currentWord = deck[currentIndex]
+      if (!currentWord) return
+      
+      setIsFetchingHook(true)
+      
+      const targetWord = currentWord.word
+      const meaning = currentWord.translation || currentWord.definition
+      
+      const customPrompt = `You are a memory expert helping a student memorize vocabulary.
+      Create a mnemonic device for the ${langMode === 'de' ? 'German' : 'English'} word "${targetWord}" which means "${meaning}".
+      
+      Rules:
+      1. Provide exactly ONE highly relevant emoji.
+      2. Write ONE short, bizarre, and funny English sentence linking the sound of the word to its meaning. 
+      
+      Format strictly like this:
+      EMOJI: [emoji]
+      HOOK: [your sentence]`
+
+      try {
+        const res = await fetch('/api/analyze-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId: "MOCK_ID_FOR_PROMPT", customPrompt })
+        })
+        const data = await res.json()
+        
+        if (data.analysis) {
+            // Parse the AI response
+            const text = data.analysis;
+            const emojiMatch = text.match(/EMOJI:\s*(.+)/);
+            const hookMatch = text.match(/HOOK:\s*(.+)/);
+            
+            setAiHook({
+                emoji: emojiMatch ? emojiMatch[1] : '🧠',
+                sentence: hookMatch ? hookMatch[1] : text.replace('### 🤖 AI Analysis\n', '')
+            })
+        }
+      } catch(e) {
+          setAiHook({ emoji: '⚠️', sentence: "Failed to generate neural hook." })
+      }
+      setIsFetchingHook(false)
+  }
+
+  if (deck.length === 0) {
+      return (
+          <div className="max-w-4xl mx-auto py-20 px-4 text-center">
+              <h2 className="text-2xl font-bold text-slate-400 mb-4">Vault is Empty</h2>
+              <p className="text-slate-500">Go to the Learning Theater or Language Coach to add some vocabulary first.</p>
+              <div className="flex justify-center mt-8 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl w-fit mx-auto">
+                 <button onClick={() => setLangMode('en')} className={cn("px-6 py-2.5 rounded-xl text-sm font-bold transition-all", langMode === 'en' ? "bg-white dark:bg-slate-800 text-indigo-600 shadow-sm" : "text-slate-500 hover:text-white")}>🇬🇧 English</button>
+                 <button onClick={() => setLangMode('de')} className={cn("px-6 py-2.5 rounded-xl text-sm font-bold transition-all", langMode === 'de' ? "bg-amber-500 text-slate-900 shadow-sm" : "text-slate-500 hover:text-white")}>🇩🇪 Deutsch</button>
+              </div>
+          </div>
+      )
+  }
+
+  const currentCard = deck[currentIndex]
 
   return (
-    <div className="max-w-3xl mx-auto h-[85vh] flex flex-col pb-10 animate-in fade-in duration-500">
-      <header className="mb-8 text-center">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2 flex items-center justify-center gap-3">
-          <Brain className="text-indigo-600 dark:text-indigo-400" size={32} />
-          Active Recall
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 font-medium">Test your knowledge. Strengthen your neural pathways.</p>
+    <div className="max-w-4xl mx-auto pb-32 animate-in fade-in duration-500 px-4 md:px-8">
+      
+      {/* HEADER */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+            <BrainCircuit className="text-indigo-600" size={36} /> Active Recall
+          </h1>
+          <p className="text-slate-500 font-medium mt-2">Flip cards. Forge neural pathways. Defy the forgetting curve.</p>
+        </div>
+        
+        <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl shrink-0">
+           <button onClick={() => setLangMode('en')} className={cn("px-6 py-2.5 rounded-xl text-sm font-bold transition-all", langMode === 'en' ? "bg-white dark:bg-slate-800 text-indigo-600 shadow-sm" : "text-slate-500 hover:text-white")}>🇬🇧 English</button>
+           <button onClick={() => setLangMode('de')} className={cn("px-6 py-2.5 rounded-xl text-sm font-bold transition-all", langMode === 'de' ? "bg-amber-500 text-slate-900 shadow-sm" : "text-slate-500 hover:text-white")}>🇩🇪 Deutsch</button>
+        </div>
       </header>
 
-      {/* LOADING / EMPTY STATES */}
-      {loading && <div className="flex-1 flex items-center justify-center text-slate-400 font-medium animate-pulse">Loading your brain...</div>}
-
-      {!loading && notes.length === 0 && (
-        <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center bg-slate-50/50 dark:bg-slate-900/50">
-          <p className="text-slate-500 dark:text-slate-400 mb-4 font-medium">Your Knowledge Vault is empty.</p>
-          <button onClick={() => router.push('/vault')} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 font-bold hover:underline">Go add some notes first!</button>
-        </div>
-      )}
+      {/* PROGRESS BAR */}
+      <div className="mb-8">
+          <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+              <span>Card {currentIndex + 1} of {deck.length}</span>
+              <span>{Math.round(((currentIndex + 1) / deck.length) * 100)}%</span>
+          </div>
+          <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${((currentIndex + 1) / deck.length) * 100}%` }} />
+          </div>
+      </div>
 
       {/* THE FLASHCARD */}
-      {!loading && currentCard && (
-        <div className="flex-1 flex flex-col relative group perspective">
-          
-          <div className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] p-8 md:p-16 shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col items-center justify-center text-center relative overflow-hidden transition-all duration-500">
-            
-            <div className={cn("absolute inset-0 opacity-[0.03] dark:opacity-[0.1] transition-colors duration-500 pointer-events-none", isRevealed ? "bg-indigo-600" : "bg-slate-900 dark:bg-indigo-900")} />
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500" />
-
-            <span className="mb-8 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 z-10">
-              {currentCard.topic}
-            </span>
-
-            <h2 className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mb-10 z-10 leading-tight">
-              {currentCard.concept}
-            </h2>
-
-            <div className={cn("w-full transition-all duration-500 ease-in-out z-10", isRevealed ? "opacity-100 translate-y-0 max-h-96" : "opacity-0 translate-y-4 max-h-0 overflow-hidden")}>
-              <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-8 text-slate-700 dark:text-slate-300 text-lg leading-relaxed whitespace-pre-wrap border border-slate-100 dark:border-slate-700 shadow-inner">
-                {currentCard.details}
+      <div className="relative w-full h-[400px] md:h-[450px] perspective-1000 group">
+          <div className={cn(
+              "w-full h-full transition-all duration-500 transform-style-3d cursor-pointer shadow-2xl rounded-[3rem]",
+              isFlipped ? "rotate-y-180" : ""
+          )} onClick={() => !isFlipped && setIsFlipped(true)}>
+              
+              {/* FRONT OF CARD (The Question) */}
+              <div className={cn(
+                  "absolute inset-0 backface-hidden bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center p-8 text-center",
+                  !isFlipped ? "z-20" : "z-0"
+              )}>
+                 <span className="absolute top-8 text-xs font-black uppercase tracking-widest text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">
+                     {currentCard.word_type || "Vocabulary"}
+                 </span>
+                 
+                 {/* Visual Emoji representation if already fetched, otherwise a brain */}
+                 <div className="text-6xl mb-6">{aiHook ? aiHook.emoji : '🧠'}</div>
+                 
+                 <h2 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tight">
+                    {langMode === 'de' && currentCard.gender && (
+                        <span className={cn("mr-3", getGenderColor(currentCard.gender))}>{currentCard.gender}</span>
+                    )}
+                    {currentCard.word}
+                 </h2>
+                 <p className="absolute bottom-8 text-slate-400 font-bold animate-pulse flex items-center gap-2">
+                    <RefreshCcw size={16} /> Tap to reveal
+                 </p>
               </div>
-            </div>
-          </div>
 
-          <div className="mt-8 grid grid-cols-2 gap-4">
-            {!isRevealed ? (
-              <button onClick={() => setIsRevealed(true)} className="col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white hover:border-indigo-300 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 text-lg font-bold py-4 rounded-2xl transition-all shadow-sm flex items-center justify-center gap-2 group">
-                <Eye size={24} className="text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
-                Reveal Answer
-              </button>
-            ) : (
-              <>
-                <button onClick={nextCard} className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/30 font-bold py-4 rounded-2xl transition-all">
-                  Hard
-                </button>
-                <button onClick={nextCard} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-2 active:scale-95">
-                  <RotateCw size={20} />
-                  Next Card
-                </button>
-              </>
-            )}
+              {/* BACK OF CARD (The Answer & Memory Hook) */}
+              <div className={cn(
+                  "absolute inset-0 backface-hidden rotate-y-180 bg-indigo-50 dark:bg-indigo-950/30 rounded-[3rem] border-2 border-indigo-200 dark:border-indigo-900/50 flex flex-col items-center justify-center p-8 text-center overflow-hidden",
+                  isFlipped ? "z-20" : "z-0"
+              )}>
+                 <h3 className="text-3xl md:text-5xl font-black text-indigo-900 dark:text-indigo-100 mb-6">
+                    {currentCard.translation || currentCard.definition}
+                 </h3>
+
+                 {/* Extra Grammar Info */}
+                 {(currentCard.plural_form || currentCard.conjugation) && (
+                     <div className="bg-white/50 dark:bg-slate-900/50 p-4 rounded-2xl w-full max-w-sm text-sm font-medium text-slate-700 dark:text-slate-300 mb-6 border border-indigo-100 dark:border-indigo-800/50">
+                         {currentCard.plural_form && <div className="mb-1"><span className="font-bold text-indigo-500 mr-2">Plural:</span> {currentCard.plural_form}</div>}
+                         {currentCard.conjugation && <div><span className="font-bold text-indigo-500 mr-2">Conj:</span> {currentCard.conjugation}</div>}
+                     </div>
+                 )}
+
+                 {/* THE AI NEURAL HOOK SECTION */}
+                 <div className="w-full max-w-md mt-auto">
+                     {!aiHook ? (
+                         <button 
+                            onClick={(e) => { e.stopPropagation(); generateMemoryHook(); }}
+                            disabled={isFetchingHook}
+                            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-bold shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                         >
+                            <Sparkles size={18} className={isFetchingHook ? "animate-spin" : ""} /> 
+                            {isFetchingHook ? "Forging Mnemonic..." : "Generate Neural Hook"}
+                         </button>
+                     ) : (
+                         <div className="bg-amber-100/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 p-5 rounded-2xl animate-in zoom-in-95">
+                             <div className="text-4xl mb-3">{aiHook.emoji}</div>
+                             <p className="text-amber-900 dark:text-amber-200 font-bold text-sm leading-relaxed">
+                                 {aiHook.sentence}
+                             </p>
+                         </div>
+                     )}
+                 </div>
+              </div>
+
           </div>
-        </div>
-      )}
+      </div>
+
+      {/* CONTROLS */}
+      <div className="flex items-center justify-center gap-6 mt-10">
+          <button onClick={prevCard} disabled={currentIndex === 0} className="w-14 h-14 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 hover:text-indigo-600 hover:border-indigo-300 disabled:opacity-30 transition-all shadow-sm">
+             <ArrowLeft size={24} />
+          </button>
+          
+          <button onClick={() => setIsFlipped(!isFlipped)} className="px-8 py-4 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black tracking-widest uppercase shadow-xl hover:scale-105 active:scale-95 transition-all">
+             Flip Card
+          </button>
+
+          <button onClick={nextCard} disabled={currentIndex === deck.length - 1} className="w-14 h-14 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 hover:text-indigo-600 hover:border-indigo-300 disabled:opacity-30 transition-all shadow-sm">
+             <ArrowRight size={24} />
+          </button>
+      </div>
+
+      {/* Custom CSS for 3D Flip (Add this to your globals.css if you haven't already, or it works fine without it by just snapping) */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+      `}} />
+
     </div>
   )
 }
