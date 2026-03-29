@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { Bot, BookOpen, Target, CheckCircle2, Send, Plus, X, Search, Filter, Wand2, Volume2, Pencil } from 'lucide-react'
+import { Bot, BookOpen, Target, CheckCircle2, Send, Plus, X, Search, Filter, Wand2, Volume2, Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Vocab {
@@ -22,7 +22,7 @@ export default function AICoachPage() {
   const [plural, setPlural] = useState(''); const [conjugation, setConjugation] = useState('')
   const [isAutoFilling, setIsAutoFilling] = useState(false) 
 
-  // Edit State 🎯 NEW
+  // Edit State
   const [editingWord, setEditingWord] = useState<Vocab | null>(null)
 
   // Search & Filter State
@@ -50,7 +50,6 @@ export default function AICoachPage() {
     if (data) setVocabList(data)
   }
 
-  // --- ✨ MAGIC AUTO-FILL ENGINE ---
   async function autoFillWord() {
       if (!word.trim()) return alert("Commander, please type a word first to analyze it.")
       setIsAutoFilling(true)
@@ -85,7 +84,6 @@ export default function AICoachPage() {
       setIsAutoFilling(false)
   }
 
-  // --- 🔊 AUDIO PROTOCOL ---
   const playAudio = (text: string) => {
       if (!window.speechSynthesis) return alert("Your browser does not support Web Speech API.")
       window.speechSynthesis.cancel() 
@@ -95,7 +93,6 @@ export default function AICoachPage() {
       window.speechSynthesis.speak(utterance)
   }
 
-  // --- VAULT LOGIC (Create, Update, Delete) ---
   async function addWord(e: React.FormEvent) {
     e.preventDefault()
     
@@ -121,7 +118,6 @@ export default function AICoachPage() {
     fetchVocab()
   }
 
-  // 🎯 NEW: Edit Update Protocol
   async function handleUpdateWord(e: React.FormEvent) {
       e.preventDefault()
       if (!editingWord) return
@@ -143,7 +139,9 @@ export default function AICoachPage() {
       fetchVocab()
   }
 
+  // 🎯 UPGRADED: Added Safety Confirmation Dialogue
   async function deleteWord(id: number) {
+    if (!confirm("Delete this memory block? This action cannot be undone.")) return;
     const tableName = langMode === 'en' ? 'vocabulary' : 'german_vocabulary'
     await supabase.from(tableName).delete().eq('id', id)
     fetchVocab()
@@ -168,7 +166,6 @@ export default function AICoachPage() {
       return "text-slate-500 bg-slate-100 dark:bg-slate-800"
   }
 
-  // --- GEMINI AI DRILL PROTOCOL ---
   async function generateChallenge() {
     if (selectedWords.length === 0) return alert("Select at least 1 word for the drill.")
     setIsDrilling(true); setFeedback(''); setUserSentence('');
@@ -332,36 +329,46 @@ export default function AICoachPage() {
           {/* VOCAB LIST GRID */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative">
             {filteredVocab.map(v => (
-              <div key={v.id} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative group hover:shadow-md transition-all">
+              <div key={v.id} className="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-sm relative group hover:shadow-xl transition-all flex flex-col">
                  
-                 {/* 🎯 EDIT AND DELETE BUTTONS */}
-                 <div className="absolute top-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => setEditingWord(v)} className="text-slate-300 hover:text-indigo-500 transition-colors p-1" title="Edit Data"><Pencil size={16} /></button>
-                    <button onClick={() => deleteWord(v.id)} className="text-slate-300 hover:text-red-500 transition-colors p-1" title="Delete"><X size={16} /></button>
-                 </div>
-                 
-                 <div className="flex items-center justify-between mb-2">
-                     {langMode === 'de' && (
-                         <span className={cn("text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded", v.word_type === 'Noun' ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" : v.word_type === 'Verb' ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400")}>
+                 {/* 🎯 TOP ROW: Badges & Safe Admin Actions */}
+                 <div className="flex items-start justify-between mb-4">
+                     {langMode === 'de' ? (
+                         <span className={cn("text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg", v.word_type === 'Noun' ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" : v.word_type === 'Verb' ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400")}>
                            {v.word_type}
                          </span>
-                     )}
+                     ) : <div />}
+
+                     {/* Admin Controls - Pushed to the very top right, safely separated */}
+                     <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => setEditingWord(v)} className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-500/10 transition-all p-2 rounded-xl" title="Edit Data"><Pencil size={16} /></button>
+                        <button onClick={() => deleteWord(v.id)} className="text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-500/10 transition-all p-2 rounded-xl" title="Delete"><Trash2 size={16} /></button>
+                     </div>
+                 </div>
+                 
+                 {/* 🎯 MIDDLE ROW: Core Word & Dedicated Audio Button */}
+                 <div className="flex items-start justify-between gap-4">
+                     <div>
+                         <h3 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
+                            {v.gender && <span className={cn("px-2 py-1 rounded-md text-xs uppercase tracking-wider font-bold", getGenderColor(v.gender))}>{v.gender}</span>}
+                            {v.word}
+                         </h3>
+                         <p className="text-slate-500 font-medium text-sm mt-2 leading-relaxed">{v.translation || v.definition}</p>
+                     </div>
                      
-                     <button onClick={() => playAudio(v.word)} title="Listen to Pronunciation" className="text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ml-auto p-1">
-                         <Volume2 size={18} />
+                     {/* The Learning Action - Distinct and separated from Edit/Delete */}
+                     <button onClick={() => playAudio(v.word)} title="Listen to Pronunciation" className="shrink-0 w-12 h-12 bg-slate-50 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full flex items-center justify-center transition-all shadow-sm">
+                         <Volume2 size={20} />
                      </button>
                  </div>
                  
-                 <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2 pr-12">
-                    {v.gender && <span className={cn("px-2 py-0.5 rounded text-xs uppercase tracking-wider", getGenderColor(v.gender))}>{v.gender}</span>}
-                    {v.word}
-                 </h3>
-                 <p className="text-slate-500 font-medium text-sm mt-2">{v.translation || v.definition}</p>
-                 
+                 {/* BOTTOM ROW: Grammar Notes */}
                  {(v.plural_form || v.conjugation) && (
-                   <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700">
-                     {v.plural_form && <div><span className="text-slate-400 font-bold mr-2">Plural:</span>{v.plural_form}</div>}
-                     {v.conjugation && <div className={v.plural_form ? "mt-1" : ""}><span className="text-slate-400 font-bold mr-2">Conj:</span>{v.conjugation}</div>}
+                   <div className="mt-auto pt-4">
+                     <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700">
+                       {v.plural_form && <div><span className="text-slate-400 font-bold mr-2 uppercase tracking-widest text-[10px]">Plural:</span>{v.plural_form}</div>}
+                       {v.conjugation && <div className={v.plural_form ? "mt-2" : ""}><span className="text-slate-400 font-bold mr-2 uppercase tracking-widest text-[10px]">Conj:</span>{v.conjugation}</div>}
+                     </div>
                    </div>
                  )}
               </div>
@@ -369,7 +376,7 @@ export default function AICoachPage() {
             {filteredVocab.length === 0 && <p className="text-slate-400 text-sm italic col-span-full text-center py-8">No matching vocabulary found.</p>}
           </div>
 
-          {/* 🎯 THE EDIT MODAL OVERLAY */}
+          {/* THE EDIT MODAL OVERLAY */}
           {editingWord && (
              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
                 <div className="bg-white dark:bg-slate-900 w-full max-w-xl p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl relative">
