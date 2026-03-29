@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import dynamic from 'next/dynamic'
 import YouTube from 'react-youtube'
-import { PlaySquare, Plus, ArrowLeft, Trash2, CheckCircle2, Film, Link as LinkIcon, X, Bot, Clock } from 'lucide-react'
+import { PlaySquare, Plus, ArrowLeft, Trash2, CheckCircle2, Film, Link as LinkIcon, X, Bot, Clock, Wand2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
@@ -22,7 +22,7 @@ export default function TheaterPage() {
   const [notes, setNotes] = useState('')
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [ytPlayer, setYtPlayer] = useState<any>(null) // 🎯 NEW: YouTube Player Reference
+  const [ytPlayer, setYtPlayer] = useState<any>(null)
 
   // Forms
   const [isAddingPlaylist, setIsAddingPlaylist] = useState(false)
@@ -38,6 +38,7 @@ export default function TheaterPage() {
   const [vType, setVType] = useState('Noun'); const [vGender, setVGender] = useState('der')
   const [vPlural, setVPlural] = useState(''); const [vConj, setVConj] = useState('')
   const [isSavingVocab, setIsSavingVocab] = useState(false)
+  const [isAutoFilling, setIsAutoFilling] = useState(false) // 🎯 NEW: Auto-fill state for Quick Vocab
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -145,16 +146,49 @@ export default function TheaterPage() {
     setIsAnalyzing(false);
   }
 
-  // 🎯 NEW: Capture exact video timestamp and inject into markdown
   const insertTimestamp = async () => {
     if (ytPlayer) {
         const time = await ytPlayer.getCurrentTime();
         const minutes = Math.floor(time / 60);
         const seconds = Math.floor(time % 60).toString().padStart(2, '0');
-        // Inserts standard markdown code syntax which we intercept later
         const timeStr = `\n\`${minutes}:${seconds}\` - `;
         handleNotesChange(notes + timeStr);
     }
+  }
+
+  // 🎯 NEW: Magic Auto-Fill specific to the Quick Vocab Modal
+  async function autoFillQuickVocab() {
+      if (!vWord.trim()) return alert("Commander, type a word first to extract its data.")
+      setIsAutoFilling(true)
+
+      const customPrompt = vocabLang === 'de' 
+        ? `Analyze the German word "${vWord}". Return ONLY a raw JSON object with these exact keys: "translation" (English meaning), "word_type" ("Noun", "Verb", "Adjective", "Adverb", "Other"), "gender" ("der", "die", "das", or null if not a noun), "plural" (plural form in German, or null), "conjugation" (brief conjugation notes like 'ich gehe, du gehst' or null). Do not use markdown formatting or code blocks.`
+        : `Analyze the English word "${vWord}". Return ONLY a raw JSON object with this exact key: "translation" (a clear, concise dictionary definition). Do not use markdown formatting or code blocks.`
+
+      try {
+          const res = await fetch('/api/analyze-video', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ videoId: "MOCK_ID_FOR_PROMPT", customPrompt })
+          })
+          const data = await res.json()
+          
+          if (data.analysis) {
+              const cleanJson = data.analysis.replace(/```json/g, '').replace(/```/g, '').trim();
+              const parsed = JSON.parse(cleanJson);
+              
+              if(parsed.translation) setVTrans(parsed.translation);
+              if(vocabLang === 'de') {
+                 if(parsed.word_type) setVType(parsed.word_type);
+                 if(parsed.gender && parsed.word_type === 'Noun') setVGender(parsed.gender);
+                 if(parsed.plural) setVPlural(parsed.plural);
+                 if(parsed.conjugation) setVConj(parsed.conjugation);
+              }
+          }
+      } catch (e) {
+          alert("Auto-fill analysis failed. The AI might be overloaded.")
+      }
+      setIsAutoFilling(false)
   }
 
   async function saveQuickVocab(e: React.FormEvent) {
@@ -270,7 +304,6 @@ export default function TheaterPage() {
         ))}
       </div>
 
-      {/* 🎬 THEATER 2.0 (SPLIT SCREEN DOJO) */}
       {playingVideo && (
         <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col animate-in fade-in duration-300 overflow-hidden">
           
@@ -295,7 +328,6 @@ export default function TheaterPage() {
           <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
             <div className="flex-[7] bg-black p-0 lg:p-6 flex items-center justify-center relative border-b lg:border-b-0 lg:border-r border-slate-800 min-h-[30vh] lg:min-h-0">
                <div className="w-full h-full lg:rounded-2xl overflow-hidden shadow-2xl relative">
-                  {/* 🎯 NEW: Upgraded React-YouTube Player */}
                   <YouTube
                     videoId={playingVideo.youtube_id}
                     opts={{ width: '100%', height: '100%', playerVars: { autoplay: 1, modestbranding: 1, rel: 0 } }}
@@ -315,7 +347,6 @@ export default function TheaterPage() {
                   </div>
                   
                   <div className="flex gap-2">
-                      {/* 🎯 NEW: Timestamp Capture Button */}
                       <button onClick={insertTimestamp} title="Log Video Timestamp" className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
                           <Clock size={16} />
                       </button>
@@ -334,8 +365,6 @@ export default function TheaterPage() {
                     className="w-full h-full border-0 !bg-transparent"
                     height="100%"
                     textareaProps={{ placeholder: "Log notes here. Hit the clock icon to drop a playable timestamp..." }}
-                    
-                    /* 🎯 FIXED: Wrapped components inside previewOptions */
                     previewOptions={{
                         components: {
                             code: ({ inline, children, ...props }: any) => {
@@ -377,7 +406,20 @@ export default function TheaterPage() {
                                   )}
                               </div>
                           )}
-                          <input type="text" placeholder={vocabLang === 'en' ? "Word / Phrase" : "German Word"} value={vWord} onChange={e => setVWord(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-indigo-500" required />
+                          
+                          <div className="relative">
+                            <input type="text" placeholder={vocabLang === 'en' ? "Word / Phrase" : "German Word"} value={vWord} onChange={e => setVWord(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-4 pr-12 py-3 text-sm font-bold text-white outline-none focus:border-indigo-500" required />
+                            <button 
+                                type="button" 
+                                onClick={autoFillQuickVocab}
+                                disabled={isAutoFilling || !vWord}
+                                title="AI Auto-Fill Details"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-400 hover:text-white p-1 rounded-lg transition-all disabled:opacity-50"
+                            >
+                                <Wand2 size={18} className={isAutoFilling ? "animate-spin" : ""} />
+                            </button>
+                          </div>
+                          
                           <input type="text" placeholder={vocabLang === 'en' ? "Definition" : "English Translation"} value={vTrans} onChange={e => setVTrans(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-indigo-500" required />
                           {vocabLang === 'de' && vType === 'Noun' && <input type="text" placeholder="Plural (e.g. die Häuser)" value={vPlural} onChange={e => setVPlural(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-white outline-none focus:border-indigo-500" />}
                           {vocabLang === 'de' && vType === 'Verb' && <input type="text" placeholder="Conjugation Notes" value={vConj} onChange={e => setVConj(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-white outline-none focus:border-indigo-500" />}

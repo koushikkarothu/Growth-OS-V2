@@ -1,121 +1,228 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { useRouter } from 'next/navigation'
-import { BarChart, Bar, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
-import { subDays, format, eachDayOfInterval } from 'date-fns'
-import { Loader2, TrendingUp, Activity, PieChart as PieIcon, Flame } from 'lucide-react'
+import { BarChart2, Brain, Zap, TrendingUp, BookOpen, Target } from 'lucide-react'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { cn } from '@/lib/utils'
 
-const COLORS = ['#4f46e5', '#8b5cf6', '#f59e0b', '#ec4899', '#3b82f6']
+interface VocabData {
+  id: number; word_type?: string; gender?: string; repetition: number; created_at: string;
+}
 
 export default function AnalyticsPage() {
-  const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [activityData, setActivityData] = useState<any[]>([])
-  const [categoryData, setCategoryData] = useState<any[]>([])
-  const [habitMatrix, setHabitMatrix] = useState<any[]>([])
-  const [streakData, setStreakData] = useState<any[]>([])
-  const [dates, setDates] = useState<Date[]>([])
-  const [mounted, setMounted] = useState(false)
+  
+  // Data States
+  const [totalWords, setTotalWords] = useState(0)
+  const [masteryData, setMasteryData] = useState<any[]>([])
+  const [typeData, setTypeData] = useState<any[]>([])
+  const [genderData, setGenderData] = useState({ der: 0, die: 0, das: 0 })
+  const [dueToday, setDueToday] = useState(0)
 
   useEffect(() => {
-    setMounted(true)
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser(); if (!user) { router.push('/login'); return }
-      fetchData()
-    }
-    init()
+    fetchAnalytics()
   }, [])
 
-  async function fetchData() {
-    const today = new Date()
-    const { data: tasks } = await supabase.from('tasks').select('*')
-    if (!tasks) { setLoading(false); return }
+  async function fetchAnalytics() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-    const activeStreaks = tasks.filter((t: any) => t.current_streak > 0 && t.type !== 'Goal').sort((a: any, b: any) => b.current_streak - a.current_streak)
-    setStreakData(activeStreaks)
+    // 1. Fetch from both databases
+    const [enRes, deRes] = await Promise.all([
+        supabase.from('vocabulary').select('repetition, created_at, next_review').eq('user_id', user.id),
+        supabase.from('german_vocabulary').select('word_type, gender, repetition, created_at, next_review').eq('user_id', user.id)
+    ])
 
-    const { data: logs } = await supabase.from('task_logs').select('date').gte('date', subDays(today, 14).toISOString())
-    const activityMap = new Map()
-    for (let i = 13; i >= 0; i--) {
-      const d = subDays(today, i); activityMap.set(format(d, 'yyyy-MM-dd'), { day: format(d, 'MMM dd'), count: 0 })
-    }
-    logs?.forEach((log: any) => { if (activityMap.has(log.date)) activityMap.get(log.date).count += 1 })
-    setActivityData(Array.from(activityMap.values()))
+    const enWords = enRes.data || []
+    const deWords = deRes.data || []
+    const allWords = [...enWords, ...deWords]
 
-    const categoryMap: any = {}
-    tasks.forEach((task: any) => { categoryMap[task.category] = (categoryMap[task.category] || 0) + 1 })
-    setCategoryData(Object.keys(categoryMap).map(key => ({ name: key, value: categoryMap[key] })))
+    setTotalWords(allWords.length)
 
-    setDates(eachDayOfInterval({ start: subDays(today, 6), end: today }))
-    const { data: matrixLogs } = await supabase.from('task_logs').select('*').gte('date', subDays(today, 7).toISOString())
-    const matrixHabits = tasks.filter((t: any) => t.frequency_goal > 0).map((t: any) => ({ ...t, logs: matrixLogs?.filter((l: any) => l.task_id === t.id) }))
-    setHabitMatrix(matrixHabits)
+    // 2. Calculate SM-2 Mastery Levels
+    // Repetition 0 = New, 1-3 = Learning, 4+ = Mastered
+    let newWords = 0, learning = 0, mastered = 0;
+    let due = 0;
+    const today = new Date().toISOString()
+
+    allWords.forEach(w => {
+        if (w.repetition === 0) newWords++;
+        else if (w.repetition < 4) learning++;
+        else mastered++;
+
+        if (w.next_review && w.next_review <= today) due++;
+    })
+
+    setMasteryData([
+        { name: 'New (0 Reps)', value: newWords, color: '#94a3b8' }, // Slate 400
+        { name: 'Learning (1-3 Reps)', value: learning, color: '#6366f1' }, // Indigo 500
+        { name: 'Mastered (4+ Reps)', value: mastered, color: '#10b981' } // Emerald 500
+    ])
+    setDueToday(due)
+
+    // 3. Calculate German Word Types
+    const types: Record<string, number> = { Noun: 0, Verb: 0, Adjective: 0, Other: 0 }
+    let derCount = 0, dieCount = 0, dasCount = 0;
+
+    deWords.forEach(w => {
+        if (w.word_type) {
+            if (types[w.word_type] !== undefined) types[w.word_type]++;
+            else types['Other']++;
+        }
+        if (w.gender === 'der') derCount++;
+        if (w.gender === 'die') dieCount++;
+        if (w.gender === 'das') dasCount++;
+    })
+
+    setTypeData([
+        { name: 'Nouns', value: types.Noun, color: '#3b82f6' },
+        { name: 'Verbs', value: types.Verb, color: '#10b981' },
+        { name: 'Adjectives', value: types.Adjective, color: '#a855f7' },
+        { name: 'Other', value: types.Other, color: '#f59e0b' }
+    ].filter(d => d.value > 0)) // Only show types that have words
+
+    setGenderData({ der: derCount, die: dieCount, das: dasCount })
+    
     setLoading(false)
   }
 
-  if (!mounted) return null
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-slate-900 border border-slate-700 p-3 rounded-xl shadow-xl">
+          <p className="text-white font-bold">{`${payload[0].name} : ${payload[0].value}`}</p>
+        </div>
+      );
+    }
+    return null;
+  }
+
+  if (loading) return <div className="py-20 text-center text-slate-500 animate-pulse">Compiling Analytics Data...</div>
 
   return (
-    <div className="max-w-6xl mx-auto pb-20 animate-in fade-in duration-500">
-      <header className="mb-10">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Analytics</h1>
-        <p className="text-slate-500 dark:text-slate-400 font-medium">Measure your progress. Optimize your systems.</p>
+    <div className="max-w-6xl mx-auto pb-32 animate-in fade-in duration-500 px-4 md:px-8">
+      
+      {/* HEADER */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+            <BarChart2 className="text-indigo-600" size={36} /> Analytics
+          </h1>
+          <p className="text-slate-500 font-medium mt-2">Neural network capacity and retention metrics.</p>
+        </div>
+        <button onClick={fetchAnalytics} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500 text-slate-700 dark:text-slate-300 px-6 py-3 rounded-2xl font-bold transition-all shadow-sm flex items-center justify-center gap-2">
+            <TrendingUp size={18} /> Refresh Data
+        </button>
       </header>
 
-      {loading && <Loader2 className="animate-spin text-indigo-600 mx-auto" size={40} />}
-
-      {!loading && (
-        <div className="space-y-8">
-          <section>
-            <div className="flex items-center gap-2 mb-6">
-              <div className="p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg text-orange-500"><Flame size={20} fill="currentColor" /></div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Consistency Leaderboard</h2>
-            </div>
-            {streakData.length === 0 ? (
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 text-center text-slate-400">No active streaks yet.</div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {streakData.map((task, index) => {
-                  const isGold = index === 0; const isSilver = index === 1; const isBronze = index === 2;
-                  return (
-                    <div key={task.id} className={cn("relative bg-white dark:bg-slate-900 border rounded-2xl p-5 shadow-sm transition-all hover:shadow-md", isGold ? "border-amber-200 bg-amber-50/30 dark:bg-amber-900/10 dark:border-amber-900/30" : isSilver ? "border-slate-300 bg-slate-50/50 dark:bg-slate-800/50 dark:border-slate-700" : isBronze ? "border-orange-200 bg-orange-50/30 dark:bg-orange-900/10 dark:border-orange-900/30" : "border-slate-200 dark:border-slate-800")}>
-                      <div className="flex justify-between items-start mb-3">
-                        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm", isGold ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : isSilver ? "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400" : isBronze ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" : "bg-slate-100 text-slate-400 dark:bg-slate-800")}>#{index + 1}</div>
-                        <div className="flex items-center gap-1 text-orange-500 font-bold"><Flame size={16} fill="currentColor" /><span>{task.current_streak}</span></div>
-                      </div>
-                      <h3 className="font-bold text-slate-800 dark:text-slate-200 truncate mb-1">{task.title}</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">{task.frequency_goal === 7 ? 'Daily Streak' : 'Weekly Streak'}</p>
-                      <div className="mt-3 h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className={cn("h-full rounded-full", isGold ? "bg-amber-400" : "bg-indigo-500")} style={{ width: '100%' }} /></div>
-                    </div>
-                  )
-                })}
+      {/* TOP METRICS CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-6">
+              <div className="w-14 h-14 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-2xl flex items-center justify-center shrink-0">
+                  <BookOpen size={28} />
               </div>
-            )}
-          </section>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-3xl shadow-sm">
-              <div className="flex items-center gap-2 mb-8"><div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg text-indigo-600 dark:text-indigo-400"><Activity size={20} /></div><h2 className="text-lg font-bold text-slate-900 dark:text-white">Activity Pulse</h2></div>
-              <div className="h-[300px] w-full"><ResponsiveContainer width="100%" height="100%"><BarChart data={activityData}><XAxis dataKey="day" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} /><RechartsTooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '12px', color: '#fff' }} /><Bar dataKey="count" fill="#4f46e5" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></div>
-            </div>
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-3xl shadow-sm">
-              <div className="flex items-center gap-2 mb-8"><div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-purple-600 dark:text-purple-400"><PieIcon size={20} /></div><h2 className="text-lg font-bold text-slate-900 dark:text-white">Focus Distribution</h2></div>
-              <div className="h-[300px] w-full"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={categoryData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">{categoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Legend verticalAlign="bottom" height={36} iconType="circle" /><RechartsTooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '12px', color: '#fff' }} /></PieChart></ResponsiveContainer></div>
-            </div>
+              <div>
+                  <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Total Vault</p>
+                  <h3 className="text-4xl font-black text-slate-900 dark:text-white">{totalWords}</h3>
+              </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-3xl shadow-sm overflow-x-auto">
-            <div className="flex items-center gap-2 mb-8"><div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg text-indigo-600 dark:text-indigo-400"><TrendingUp size={20} /></div><h2 className="text-lg font-bold text-slate-900 dark:text-white">Habit Matrix (Last 7 Days)</h2></div>
-            <table className="w-full min-w-[600px]">
-              <thead><tr><th className="text-left text-slate-400 text-xs font-bold uppercase tracking-wider pb-4">Habit</th>{dates.map(date => <th key={date.toString()} className="text-center text-slate-400 text-xs font-bold uppercase tracking-wider pb-4">{format(date, 'EEE')}</th>)}</tr></thead>
-              <tbody className="space-y-2">{habitMatrix.map((habit) => (<tr key={habit.id} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"><td className="py-4 font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">{habit.title}{habit.current_streak > 3 && <Flame size={12} className="text-orange-500" fill="currentColor" />}</td>{dates.map(date => { const dateStr = format(date, 'yyyy-MM-dd'); const isDone = habit.logs?.some((l: any) => l.date === dateStr); return (<td key={date.toString()} className="text-center"><div className={cn("w-8 h-8 rounded-lg mx-auto flex items-center justify-center transition-all", isDone ? "bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-none scale-110" : "bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600")}>{isDone && <TrendingUp size={14} />}</div></td>)})}</tr>))}</tbody>
-            </table>
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-6">
+              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-2xl flex items-center justify-center shrink-0">
+                  <Brain size={28} />
+              </div>
+              <div>
+                  <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Mastered Words</p>
+                  <h3 className="text-4xl font-black text-slate-900 dark:text-white">
+                      {masteryData.find(d => d.name.includes('Mastered'))?.value || 0}
+                  </h3>
+              </div>
           </div>
-        </div>
-      )}
+
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-6">
+              <div className="w-14 h-14 bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 rounded-2xl flex items-center justify-center shrink-0">
+                  <Target size={28} />
+              </div>
+              <div>
+                  <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Reviews Due Today</p>
+                  <h3 className="text-4xl font-black text-slate-900 dark:text-white">{dueToday}</h3>
+              </div>
+          </div>
+      </div>
+
+      {/* CHARTS GRID */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          
+          {/* SM-2 MASTERY PIPELINE */}
+          <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+              <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2 mb-8">
+                  <Zap className="text-indigo-500" /> SM-2 Retention Pipeline
+              </h3>
+              <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={masteryData} layout="vertical" margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
+                          <XAxis type="number" hide />
+                          <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} className="text-xs font-bold fill-slate-500" width={140} />
+                          <Tooltip content={<CustomTooltip />} cursor={{fill: 'transparent'}} />
+                          <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={40}>
+                              {masteryData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                          </Bar>
+                      </BarChart>
+                  </ResponsiveContainer>
+              </div>
+          </div>
+
+          {/* GERMAN WORD TYPES */}
+          <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">German Lexicon Breakdown</h3>
+              <p className="text-sm text-slate-500 font-medium mb-4">Distribution of parts of speech in your active vault.</p>
+              <div className="h-[260px] w-full flex items-center justify-center">
+                  {typeData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                              <Pie data={typeData} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={5} dataKey="value" stroke="none">
+                                  {typeData.map((entry, index) => (
+                                      <Cell key={`cell-${index}`} fill={entry.color} />
+                                  ))}
+                              </Pie>
+                              <Tooltip content={<CustomTooltip />} />
+                              <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b' }} />
+                          </PieChart>
+                      </ResponsiveContainer>
+                  ) : (
+                      <p className="text-slate-400 italic font-medium">No German vocabulary logged yet.</p>
+                  )}
+              </div>
+          </div>
+      </div>
+
+      {/* THE GENDER TRACKER BAR */}
+      <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6">Noun Gender Balance</h3>
+          
+          {genderData.der + genderData.die + genderData.das > 0 ? (
+              <div>
+                  <div className="flex justify-between text-sm font-bold mb-2">
+                      <span className="text-blue-500">Der (M): {genderData.der}</span>
+                      <span className="text-red-500">Die (F): {genderData.die}</span>
+                      <span className="text-emerald-500">Das (N): {genderData.das}</span>
+                  </div>
+                  
+                  {/* Visual Proportion Bar */}
+                  <div className="w-full h-6 rounded-full overflow-hidden flex shadow-inner">
+                      <div className="bg-blue-500 h-full transition-all duration-1000" style={{ width: `${(genderData.der / (genderData.der + genderData.die + genderData.das)) * 100}%` }} />
+                      <div className="bg-red-500 h-full transition-all duration-1000" style={{ width: `${(genderData.die / (genderData.der + genderData.die + genderData.das)) * 100}%` }} />
+                      <div className="bg-emerald-500 h-full transition-all duration-1000" style={{ width: `${(genderData.das / (genderData.der + genderData.die + genderData.das)) * 100}%` }} />
+                  </div>
+              </div>
+          ) : (
+              <p className="text-slate-400 italic font-medium text-center py-4">No German nouns logged yet.</p>
+          )}
+      </div>
+
     </div>
   )
 }
