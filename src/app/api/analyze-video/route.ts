@@ -22,7 +22,8 @@ async function executeWithWaterfall(prompt: string) {
         "gemini-2.5-flash",       // Primary: Smartest & Fastest
         "gemini-2.0-flash",       // Backup 1: Highly reliable, separate quota bucket
         "gemini-2.5-flash-lite",  // Backup 2: Blazing fast, lightweight
-        "gemini-flash-latest"     // Backup 3: Final safety net
+        "gemini-flash-latest",     // Backup 3: Final safety net
+        "gemini-2.0-flash-lite"
     ];
 
     for (const modelName of modelsToTry) {
