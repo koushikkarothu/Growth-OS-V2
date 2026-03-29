@@ -4,26 +4,38 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-// ⚡ THE IN-MEMORY REQUEST CACHE ⚡
-// This Map persists across requests while the server container is alive.
-// It stores previous prompts to instantly return the exact same answer, saving your 15 RPM quota.
+// ⚡ IN-MEMORY REQUEST CACHE ⚡
 const promptCache = new Map<string, string>();
 
 // ⚡ THE WATERFALL ENGINE ⚡
 async function executeWithWaterfall(prompt: string) {
-    // 1. Check the Cache First
-    if (promptCache.has(prompt)) {
+    // MEMORY LEAK PROTECTION: Only cache short prompts (vocab, drills). 
+    // Do not cache massive YouTube transcripts, which crash the V8 memory heap.
+    const isCacheable = prompt.length < 3000;
+
+    // 1. Check the Cache
+    if (isCacheable && promptCache.has(prompt)) {
         console.log("⚡ [Cache Hit] Returning stored response. 0 API quota used.");
         return promptCache.get(prompt);
     }
 
-    // 2. The Model Hierarchy (Stripped 'models/' prefix for API compatibility)
+    // 2. The Model Hierarchy
     const modelsToTry = [
-        "gemini-2.5-flash",       // Primary: Smartest & Fastest
-        "gemini-2.0-flash",       // Backup 1: Highly reliable, separate quota bucket
-        "gemini-2.5-flash-lite",  // Backup 2: Blazing fast, lightweight
-        "gemini-flash-latest",     // Backup 3: Final safety net
-        "gemini-2.0-flash-lite"
+        // 1. The Vanguard (Smartest & Fastest)
+        "gemini-2.5-flash",       
+        
+        // 2. The Reliable Veteran (Different quota bucket)
+        "gemini-2.0-flash",       
+        
+        // 3. The Sprinters (Lightweight, massive request limits)
+        "gemini-2.5-flash-lite",  
+        "gemini-2.0-flash-lite",
+
+        // 4. The Heavy Artillery (Slower, but incredibly smart if others fail)
+        "gemini-2.5-pro",
+        
+        // 5. The Absolute Safety Net (Points to whatever Google defines as standard)
+        "gemini-flash-latest"     
     ];
 
     for (const modelName of modelsToTry) {
@@ -32,14 +44,20 @@ async function executeWithWaterfall(prompt: string) {
             const result = await model.generateContent(prompt);
             const responseText = await result.response.text();
             
-            // 3. Save successful result to the Cache
-            promptCache.set(prompt, responseText);
+            // 3. Save to Cache (and prevent infinite RAM growth)
+            if (isCacheable) {
+                if (promptCache.size > 200) promptCache.clear(); // Flush cache if it gets too large
+                promptCache.set(prompt, responseText);
+            }
             
             return responseText;
         } catch (error: any) {
-            // Intercept Rate Limit (429) or Quota errors
-            if (error.status === 429 || (error.message && error.message.includes('429')) || (error.message && error.message.includes('Quota'))) {
-                console.warn(`⚠️ [Waterfall] ${modelName} hit rate limit. Shifting down to next model...`);
+            // 🎯 FIXED: Now intercepts both 429 (Rate Limit) AND 503 (Google Server Overload)
+            const isRateLimitOrOverload = error.status === 429 || error.status === 503 || 
+                (error.message && (error.message.includes('429') || error.message.includes('503') || error.message.includes('Quota')));
+
+            if (isRateLimitOrOverload) {
+                console.warn(`⚠️ [Waterfall] ${modelName} failed (429/503). Shifting to next model...`);
                 continue; 
             }
             // Throw catastrophic errors (like bad API keys)
@@ -47,7 +65,6 @@ async function executeWithWaterfall(prompt: string) {
         }
     }
     
-    // If all models in the array are exhausted
     throw new Error("RATE_LIMIT_EXHAUSTED");
 }
 
