@@ -104,7 +104,8 @@ export async function POST(req: Request) {
     1. A concise bulleted summary of the core concepts.
     2. Extract any important vocabulary, grammar rules, or technical formulas.
     3. Generate 3 "Active Recall" flashcard questions to test the user's memory.
-    Format the output in clean Markdown.
+    Format the output in clean HTML (use <b>, <ul>, <li>, <h3>, <br>). 
+    CRITICAL: If you create a table, you MUST use standard HTML table tags (<table>, <tr>, <th>, <td>). Do NOT use markdown backticks or markdown headers.
     Transcript:
     """
     ${fullText}
