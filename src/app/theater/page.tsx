@@ -6,7 +6,8 @@ import dynamic from 'next/dynamic'
 import YouTube from 'react-youtube'
 import { PlaySquare, Plus, ArrowLeft, Trash2, CheckCircle2, Film, Link as LinkIcon, X, Bot, Clock, Wand2, Library, Search, Table as TableIcon, GripVertical, ChevronDown, AlignLeft, LayoutPanelLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import 'react-quill-new/dist/quill.snow.css'; 
+// @ts-ignore
+import 'react-quill-new/dist/quill.snow.css';
 import { marked } from 'marked'; 
 
 // Nuclear cast to bypass all Next.js SSR and TypeScript strict typing for the Quill wrapper
