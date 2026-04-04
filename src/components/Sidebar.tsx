@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { 
   LayoutGrid, Calendar, Trophy, Zap, Brain,
-  BarChart2, Book, BrainCircuit, Settings, LogOut, Mic, PlaySquare
+  BarChart2, Book, BrainCircuit, Settings, LogOut, Mic, PlaySquare, PenTool
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Map } from 'lucide-react' // Add Map to imports
@@ -22,6 +22,7 @@ const menuItems = [
   { name: 'Knowledge Vault', icon: Book, href: '/vault' },
   { name: 'Daily Learn', icon: BrainCircuit, href: '/learn' },
   { name: 'AI Coach', icon: Mic, href: '/coach' },
+  { name: 'IELTS Forge', icon: PenTool, href: '/ielts' }
 ]
 
 export default function Sidebar() {
