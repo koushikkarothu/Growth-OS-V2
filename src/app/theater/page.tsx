@@ -222,8 +222,8 @@ export default function TheaterPage() {
       if (!vWord.trim()) return alert("Type a word first to extract its data.")
       setIsAutoFilling(true)
       const customPrompt = vocabLang === 'de' 
-        ? `Analyze the German word "${vWord}". Return ONLY a raw JSON object with these keys: "translation" (English meaning), "word_type" ("Noun", "Verb", "Adjective", "Adverb", "Other"), "gender" ("der", "die", "das", or null), "plural" (plural form or null), "conjugation" (brief conjugation notes or null). No markdown.`
-        : `Analyze the English word "${vWord}". Return ONLY a raw JSON object with this key: "translation" (dictionary definition). No markdown.`
+        ? `Analyze the German word "${vWord}". Return ONLY a raw JSON object with these keys: "translation" (English meaning), "word_type" ("Noun", "Verb", "Adjective", "Adverb", "Other"), "gender" ("der", "die", "das", or null if not a noun), "plural" (plural form in German, or null), "conjugation" (brief conjugation notes like 'ich gehe, du gehst, er/sie/es geht, wir gehen, ihr geht, sie/Sie gehen' or null). No markdown.`
+        : `Analyze the English word "${vWord}". Return ONLY a raw JSON object with this key: "translation" (a clear, concise dictionary definition). No markdown.`
 
       try {
           const res = await fetch('/api/analyze-video', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: "MOCK_ID_FOR_PROMPT", customPrompt }) })
