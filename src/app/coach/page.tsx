@@ -58,7 +58,7 @@ export default function AICoachPage() {
       if (!word.trim()) return alert("Commander, please type a word first to analyze it.")
       setIsAutoFilling(true)
       const customPrompt = langMode === 'de' 
-        ? `Analyze the German word "${word}". Return ONLY a raw JSON object with these exact keys: "translation" (English meaning), "word_type" ("Noun", "Verb", "Adjective", "Adverb", "Other"), "gender" ("der", "die", "das", or null if not a noun), "plural" (plural form in German, or null), "conjugation" (brief conjugation notes like 'ich gehe, du gehst, er/sie/es geht, wir gehen, ihr geht, sie/Sie gehen' or null). Do not use markdown formatting or code blocks.`
+        ? `Analyze the German word "${word}". Return ONLY a raw JSON object with these exact keys: "translation" (English meaning), "word_type" ("Noun", "Verb", "Adjective", "Adverb", "Preposition", "Other"), "gender" ("der", "die", "das", or null if not a noun), "plural" (plural form in German, or null), "conjugation" (brief conjugation notes like 'ich gehe, du gehst, er/sie/es geht, wir gehen, ihr geht, sie/Sie gehen' or null). Do not use markdown formatting or code blocks.`
         : `Analyze the English word "${word}". Return ONLY a raw JSON object with this exact key: "translation" (a clear, concise dictionary definition). Do not use markdown formatting or code blocks.`
       try {
           const res = await fetch('/api/analyze-video', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: "MOCK_ID_FOR_PROMPT", customPrompt }) })
@@ -205,7 +205,7 @@ export default function AICoachPage() {
                  <div className="relative md:w-48">
                     <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-11 pr-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 dark:text-white appearance-none cursor-pointer">
-                        <option value="All">All Types</option><option value="Noun">Nouns</option><option value="Verb">Verbs</option><option value="Adjective">Adjectives</option><option value="Adverb">Adverbs</option><option value="Other">Others</option>
+                        <option value="All">All Types</option><option value="Noun">Nouns</option><option value="Verb">Verbs</option><option value="Adjective">Adjectives</option><option value="Adverb">Adverbs</option><option value="Preposition">Preposition</option><option value="Other">Others</option>
                     </select>
                  </div>
               )}

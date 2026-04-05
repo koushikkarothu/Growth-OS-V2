@@ -222,7 +222,7 @@ export default function TheaterPage() {
       if (!vWord.trim()) return alert("Type a word first to extract its data.")
       setIsAutoFilling(true)
       const customPrompt = vocabLang === 'de' 
-        ? `Analyze the German word "${vWord}". Return ONLY a raw JSON object with these keys: "translation" (English meaning), "word_type" ("Noun", "Verb", "Adjective", "Adverb", "Other"), "gender" ("der", "die", "das", or null if not a noun), "plural" (plural form in German, or null), "conjugation" (brief conjugation notes like 'ich gehe, du gehst, er/sie/es geht, wir gehen, ihr geht, sie/Sie gehen' or null). No markdown.`
+        ? `Analyze the German word "${vWord}". Return ONLY a raw JSON object with these keys: "translation" (English meaning), "word_type" ("Noun", "Verb", "Adjective", "Adverb", "Preposition", "Other"), "gender" ("der", "die", "das", or null if not a noun), "plural" (plural form in German, or null), "conjugation" (brief conjugation notes like 'ich gehe, du gehst, er/sie/es geht, wir gehen, ihr geht, sie/Sie gehen' or null). No markdown.`
         : `Analyze the English word "${vWord}". Return ONLY a raw JSON object with this key: "translation" (a clear, concise dictionary definition). No markdown.`
 
       try {
@@ -478,7 +478,7 @@ export default function TheaterPage() {
                       <form onSubmit={saveQuickVocab} className="space-y-4">
                           {vocabLang === 'de' && (
                               <div className="grid grid-cols-2 gap-3">
-                                  <select value={vType} onChange={e => setVType(e.target.value)} className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white outline-none"><option>Noun</option><option>Verb</option><option>Adjective</option><option>Adverb</option><option>Other</option></select>
+                                  <select value={vType} onChange={e => setVType(e.target.value)} className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white outline-none"><option>Noun</option><option>Verb</option><option>Adjective</option><option>Adverb</option><option>Preposition</option><option>Other</option></select>
                                   {vType === 'Noun' && (<select value={vGender} onChange={e => setVGender(e.target.value)} className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white outline-none"><option value="der">der (M)</option><option value="die">die (F)</option><option value="das">das (N)</option></select>)}
                               </div>
                           )}
