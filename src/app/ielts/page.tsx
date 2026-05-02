@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { PenTool, Target, Clock, Activity, TrendingUp, AlertTriangle, CheckCircle2, ChevronRight, RefreshCw, Sparkles, Wand2, Archive, Trash2, ArrowLeft } from 'lucide-react'
+import { PenTool, Target, Clock, Activity, TrendingUp, AlertTriangle, CheckCircle2, ChevronRight, RefreshCw, Sparkles, Wand2, Archive, Trash2, ArrowLeft, Link as LinkIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface IELTSPrompt { text: string; image: string | null; }
@@ -15,6 +15,8 @@ export default function IELTSForgePage() {
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false)
   
   const [essay, setEssay] = useState('')
+  // Track elapsed time for accurate mission logging
+  const [totalTimeLimit, setTotalTimeLimit] = useState(40 * 60)
   const [timeLeft, setTimeLeft] = useState(40 * 60) 
   const [timerActive, setTimerActive] = useState(false)
 
@@ -25,12 +27,17 @@ export default function IELTSForgePage() {
   const [historyLogs, setHistoryLogs] = useState<any[]>([])
   const [viewingHistoricalLog, setViewingHistoricalLog] = useState<any>(null)
 
+  // ⚡ NEW: Deep Work Integration State
+  const [activeMissions, setActiveMissions] = useState<any[]>([])
+  const [linkedMissionId, setLinkedMissionId] = useState<string | null>(null)
+
   const wordCount = essay.trim().split(/\s+/).filter(w => w.length > 0).length
   const targetWords = taskType === 'Task 1 (Academic)' ? 150 : 250
 
   useEffect(() => { 
       generateNewPrompt('Task 2 (Essay)')
       fetchHistory() 
+      fetchActiveMissions()
   }, [])
 
   useEffect(() => {
@@ -39,6 +46,23 @@ export default function IELTSForgePage() {
       else if (timeLeft === 0) setTimerActive(false);
       return () => clearInterval(interval);
   }, [timerActive, timeLeft])
+
+  // ⚡ NEW: Fetch Active Missions
+  const fetchActiveMissions = async () => {
+    const todayStr = new Date().toISOString().split('T')[0]
+    const { data } = await supabase.from('tasks').select('id, title, time_logged').eq('status', 'active').neq('last_completed_at', todayStr)
+    if (data) setActiveMissions(data)
+  }
+
+  // ⚡ NEW: Global XP Function
+  const awardXP = async (amount: number) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: profile } = await supabase.from('profiles').select('xp').eq('id', user.id).single();
+    if (profile) {
+        await supabase.from('profiles').update({ xp: (profile.xp || 0) + amount }).eq('id', user.id);
+    }
+  };
 
   const fetchHistory = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -67,6 +91,9 @@ export default function IELTSForgePage() {
   const handleTaskSwitch = (type: 'Task 1 (Academic)' | 'Task 2 (Essay)') => {
       if (type === taskType) return;
       setTaskType(type)
+      const newTime = type === 'Task 1 (Academic)' ? 20 * 60 : 40 * 60;
+      setTotalTimeLimit(newTime)
+      setTimeLeft(newTime)
       generateNewPrompt(type)
   }
 
@@ -75,15 +102,15 @@ export default function IELTSForgePage() {
       return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   }
 
-  // 🎯 THE FIX: Hard Reset Protocol on New Prompt
   const generateNewPrompt = async (typeToGenerate = taskType) => {
       setIsGeneratingPrompt(true)
       
-      // 1. Wipe the Slate Clean
       setFeedback(null)
       setEssay('')
       setTimerActive(false)
-      setTimeLeft(typeToGenerate === 'Task 1 (Academic)' ? 20 * 60 : 40 * 60)
+      const newTime = typeToGenerate === 'Task 1 (Academic)' ? 20 * 60 : 40 * 60;
+      setTotalTimeLimit(newTime)
+      setTimeLeft(newTime)
       setErrorMsg('')
       
       setCurrentPrompt({ text: "Mining authentic past papers...", image: null })
@@ -105,11 +132,14 @@ export default function IELTSForgePage() {
   const submitForGrading = async () => {
       if (wordCount < 20) return setErrorMsg("Commander, write at least 20 words before requesting an analysis.");
       
-      // 2. Lock the Environment during submission
       setTimerActive(false)
       setIsAnalyzing(true)
       setErrorMsg('')
       setFeedback(null)
+
+      // Calculate time spent (in minutes)
+      const timeSpentSeconds = totalTimeLimit - timeLeft;
+      const timeSpentMinutes = Math.max(1, Math.floor(timeSpentSeconds / 60)); // Minimum 1 minute logged
 
       try {
           const res = await fetch('/api/ielts', {
@@ -121,6 +151,35 @@ export default function IELTSForgePage() {
           if (res.ok && data.analysis) {
               setFeedback(data.analysis)
               await saveToHistory(data.analysis, currentPrompt.text, currentPrompt.image, essay, wordCount, taskType)
+              
+              // ⚡ NEW: Award XP based on Band Score (Multiplier)
+              // Base XP is 50. A band 9 gets (9 * 20) + 50 = 230 XP.
+              const bandScore = data.analysis.overallBand || 5;
+              const earnedXP = Math.floor(50 + (bandScore * 20));
+              await awardXP(earnedXP);
+
+              // ⚡ NEW: Log time to Deep Work Mission
+              if (linkedMissionId) {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  const targetMission = activeMissions.find(m => m.id === linkedMissionId);
+                  
+                  if (targetMission && user) {
+                      const todayStr = new Date().toISOString().split('T')[0];
+                      
+                      // Log the time to the mission
+                      await supabase.from('tasks').update({ 
+                          time_logged: (targetMission.time_logged || 0) + timeSpentMinutes,
+                          last_completed_at: todayStr // Mark as active today
+                      }).eq('id', linkedMissionId);
+
+                      // Create a task log entry
+                      await supabase.from('task_logs').insert([{ 
+                          user_id: user.id, task_id: linkedMissionId, date: todayStr, 
+                          duration_minutes: timeSpentMinutes, xp_earned: earnedXP 
+                      }]);
+                  }
+              }
+
           }
           else setErrorMsg(data.error || "Analysis failed.")
       } catch (err) {
@@ -145,7 +204,14 @@ export default function IELTSForgePage() {
               <div className="absolute top-0 right-0 p-8 opacity-10"><Activity size={120} /></div>
               <h2 className="text-indigo-100 font-bold uppercase tracking-widest text-sm mb-2">Overall Band Score</h2>
               <div className="text-7xl font-black mb-4">{data.overallBand.toFixed(1)}</div>
-              <p className="text-indigo-100 font-medium leading-relaxed max-w-md">Scored against official Cambridge rubrics.</p>
+              <div className="flex items-center gap-4">
+                  <p className="text-indigo-100 font-medium leading-relaxed">Scored against official Cambridge rubrics.</p>
+                  {!isHistoryView && (
+                      <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-lg text-xs font-black uppercase tracking-widest animate-pulse">
+                          +{Math.floor(50 + (data.overallBand * 20))} XP Earned
+                      </span>
+                  )}
+              </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -228,12 +294,31 @@ export default function IELTSForgePage() {
         </div>
       </header>
 
-      {/* ==================== THE FORGE TAB ==================== */}
       {activeTab === 'forge' && (
         <>
-            <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl w-fit mb-8 border border-slate-200 dark:border-slate-800">
-               <button onClick={() => handleTaskSwitch('Task 1 (Academic)')} className={cn("px-6 py-2 rounded-xl text-sm font-bold transition-all", taskType === 'Task 1 (Academic)' ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300")}>Task 1 (150w)</button>
-               <button onClick={() => handleTaskSwitch('Task 2 (Essay)')} className={cn("px-6 py-2 rounded-xl text-sm font-bold transition-all", taskType === 'Task 2 (Essay)' ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300")}>Task 2 (250w)</button>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl w-fit border border-slate-200 dark:border-slate-800">
+                   <button onClick={() => handleTaskSwitch('Task 1 (Academic)')} className={cn("px-6 py-2 rounded-xl text-sm font-bold transition-all", taskType === 'Task 1 (Academic)' ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300")}>Task 1 (150w)</button>
+                   <button onClick={() => handleTaskSwitch('Task 2 (Essay)')} className={cn("px-6 py-2 rounded-xl text-sm font-bold transition-all", taskType === 'Task 2 (Essay)' ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300")}>Task 2 (250w)</button>
+                </div>
+                
+                {/* ⚡ NEW: Mission Telemetry Linker */}
+                {activeMissions.length > 0 && (
+                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 py-2 rounded-xl text-sm">
+                        <LinkIcon size={16} className="text-slate-400" />
+                        <span className="font-bold text-slate-500">Log to:</span>
+                        <select 
+                            className="bg-transparent font-bold text-indigo-600 dark:text-indigo-400 outline-none w-48 truncate cursor-pointer"
+                            value={linkedMissionId || ""}
+                            onChange={(e) => setLinkedMissionId(e.target.value)}
+                        >
+                            <option value="">None (Practice Only)</option>
+                            {activeMissions.map(m => (
+                                <option key={m.id} value={m.id}>{m.title}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -257,7 +342,6 @@ export default function IELTSForgePage() {
                     <div className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-[2rem] shadow-xl overflow-hidden flex flex-col relative">
                         <div className="bg-slate-50 dark:bg-slate-900/50 p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
                             <div className="flex items-center gap-4">
-                                {/* 3. Lock the timer logic based on analysis state */}
                                 <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-black tracking-widest font-mono transition-colors", timerActive ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 animate-pulse" : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400", (feedback || isAnalyzing) ? "opacity-50 cursor-not-allowed" : "cursor-pointer")} onClick={() => { if (!feedback && !isAnalyzing) setTimerActive(!timerActive) }}>
                                     <Clock size={16} /> {formatTime(timeLeft)}
                                 </div>
@@ -301,7 +385,6 @@ export default function IELTSForgePage() {
         </>
       )}
 
-      {/* ==================== THE VAULT TAB ==================== */}
       {activeTab === 'history' && (
          <div className="animate-in slide-in-from-right-4">
              {viewingHistoricalLog ? (

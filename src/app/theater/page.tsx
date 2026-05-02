@@ -24,7 +24,6 @@ export default function TheaterPage() {
   const [playingVideo, setPlayingVideo] = useState<Video | null>(null)
   const [notes, setNotes] = useState('')
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [ytPlayer, setYtPlayer] = useState<any>(null)
   
   const quillRef = useRef<any>(null)
@@ -156,33 +155,15 @@ export default function TheaterPage() {
     }, 1000)
   }
 
-  const executeGeminiExtraction = async () => {
-    if (!playingVideo || isAnalyzing) return;
-    setIsAnalyzing(true);
-    const loadingMessage = "<p><br>🤖 <em>Gemini is analyzing the video transcript...</em></p>";
-    setNotes(prev => prev + loadingMessage);
-    try {
-        const res = await fetch('/api/analyze-video', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: playingVideo.youtube_id }) });
-        const data = await res.json();
-        if (res.ok && data.analysis) {
-            const cleanedNotes = notes.replace(loadingMessage, '');
-            let htmlAnalysis = data.analysis.replace(/```html/g, '').replace(/```/g, '').trim();
-            const newNotes = cleanedNotes + "<br><hr><br><h3>🤖 AI Analysis</h3>" + htmlAnalysis;
-            handleNotesChange(newNotes);
-        } else {
-            setNotes(prev => prev.replace(loadingMessage, `<p>⚠️ <em>Error: ${data.error || "Analysis failed"}</em></p>`));
-        }
-    } catch (e) { setNotes(prev => prev.replace(loadingMessage, '<p>⚠️ <em>Error: Failed to connect to AI server.</em></p>')); }
-    setIsAnalyzing(false);
-  }
-
   const insertTimestamp = async () => {
     if (ytPlayer) {
         const time = await ytPlayer.getCurrentTime();
         const minutes = Math.floor(time / 60);
         const seconds = Math.floor(time % 60).toString().padStart(2, '0');
         const secs = Math.floor(time);
-        const timeHtml = `&nbsp;<span class="timestamp-link" data-time="${secs}" style="color: #8b5cf6; font-weight: bold; cursor: pointer; text-decoration: underline;">▶ [${minutes}:${seconds}]</span>&nbsp;`;
+        
+        // FIX: Using standard href so Quill doesn't strip it
+        const timeHtml = `&nbsp;<a href="#vid-${secs}" style="color: #8b5cf6; font-weight: bold; cursor: pointer; text-decoration: underline;">▶ [${minutes}:${seconds}]</a>&nbsp;`;
         handleNotesChange(notes + timeHtml);
     }
   }
@@ -211,16 +192,23 @@ export default function TheaterPage() {
   }
 
   const handleEditorClick = (e: any) => {
-      const target = e.target.closest('[data-time]');
-      if (target) {
-          const time = target.getAttribute('data-time');
-          if (time && ytPlayer) { ytPlayer.seekTo(parseInt(time)); ytPlayer.playVideo(); }
+      // FIX: Intercept standard link clicks
+      const target = e.target.closest('a');
+      if (target && target.getAttribute('href')?.startsWith('#vid-')) {
+          e.preventDefault(); // Stop page jump
+          const time = target.getAttribute('href').replace('#vid-', '');
+          if (time && ytPlayer) { 
+              ytPlayer.seekTo(parseInt(time)); 
+              ytPlayer.playVideo(); 
+          }
       }
   }
 
   async function autoFillQuickVocab() {
       if (!vWord.trim()) return alert("Type a word first to extract its data.")
       setIsAutoFilling(true)
+      
+      // 1. Aggressive Prompting
       const customPrompt = vocabLang === 'de' 
         ? `Analyze the German word "${vWord}". Return ONLY a raw JSON object with these keys: "translation" (English meaning), "word_type" ("Noun", "Verb", "Adjective", "Adverb", "Preposition", "Other"), "gender" ("der", "die", "das", or null if not a noun), "plural" (plural form in German, or null), "conjugation" (brief conjugation notes like 'ich gehe, du gehst, er/sie/es geht, wir gehen, ihr geht, sie/Sie gehen' or null). No markdown.`
         : `Analyze the English word "${vWord}". Return ONLY a raw JSON object with this key: "translation" (a clear, concise dictionary definition). No markdown.`
@@ -228,19 +216,36 @@ export default function TheaterPage() {
       try {
           const res = await fetch('/api/analyze-video', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: "MOCK_ID_FOR_PROMPT", customPrompt }) })
           const data = await res.json()
+          
           if (data.analysis) {
               const parsed = JSON.parse(data.analysis.replace(/```json/g, '').replace(/```/g, '').trim());
-              if(parsed.translation) setVTrans(parsed.translation);
-              if(vocabLang === 'de') {
+              
+              if (vocabLang === 'en') {
+                  // 2. Aggressive Parsing Protocol
+                  let engDef = parsed.translation || parsed.definition || parsed;
+                  
+                  // If the AI still returned a nested object (e.g. {"adjective": "..."}), extract the first string value
+                  if (typeof engDef === 'object' && engDef !== null) {
+                      const objectValues = Object.values(engDef);
+                      const firstString = objectValues.find(val => typeof val === 'string');
+                      engDef = firstString ? firstString : JSON.stringify(engDef);
+                  }
+                  
+                  setVTrans(engDef as string);
+              } else {
+                 if(parsed.translation) setVTrans(parsed.translation);
                  if(parsed.word_type) setVType(parsed.word_type);
                  if(parsed.gender && parsed.word_type === 'Noun') setVGender(parsed.gender);
                  if(parsed.plural) setVPlural(parsed.plural);
                  if(parsed.conjugation) setVConj(parsed.conjugation);
               }
           }
-      } catch (e) { alert("Auto-fill analysis failed.") }
+      } catch (e) { 
+          alert("Auto-fill analysis failed. The AI returned an unreadable format.") 
+      }
       setIsAutoFilling(false)
   }
+
 
   async function saveQuickVocab(e: React.FormEvent) {
     e.preventDefault()
@@ -447,7 +452,6 @@ export default function TheaterPage() {
                       </div>
 
                       <button onClick={insertTimestamp} title="Log Video Timestamp" className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"><Clock size={16} /></button>
-                      <button onClick={executeGeminiExtraction} disabled={isAnalyzing} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all group", isAnalyzing ? "bg-indigo-600/50 text-indigo-300" : "bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 hover:bg-indigo-600 hover:text-white")}><Bot size={14} className={isAnalyzing ? "animate-pulse" : ""} /><span className="hidden xl:inline">{isAnalyzing ? "Analyzing..." : "Extract"}</span></button>
                   </div>
                </div>
                

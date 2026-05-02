@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { BrainCircuit, Sparkles, RefreshCcw, ThumbsDown, ThumbsUp, Zap, CheckCircle2, Keyboard, AlertTriangle, ArrowRight, Terminal, Crosshair, Brain, Flame } from 'lucide-react'
+import { BrainCircuit, Sparkles, RefreshCcw, ThumbsDown, Zap, CheckCircle2, AlertTriangle, ArrowRight, Terminal, Crosshair, Brain, Flame } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Vocab {
@@ -23,7 +23,7 @@ export default function ActiveRecallPage() {
   const [isFetchingHook, setIsFetchingHook] = useState(false)
   const [aiHook, setAiHook] = useState<{ emoji: string, sentence: string } | null>(null)
 
-  // ⚡ THE AI INQUISITOR STATE (Upgraded Forge)
+  // ⚡ THE AI INQUISITOR STATE
   const [forgeInput, setForgeInput] = useState('')
   const [interrogationPrompt, setInterrogationPrompt] = useState('')
   const [gradingState, setGradingState] = useState<'idle' | 'grading' | 'correct' | 'incorrect'>('idle')
@@ -37,7 +37,6 @@ export default function ActiveRecallPage() {
       resetState();
   }, [langMode, drillMode])
 
-  // Generate a new dynamic question whenever the card changes in Forge Mode
   useEffect(() => {
       if (drillMode === 'forge' && deck.length > 0) {
           generateInterrogation(deck[currentIndex])
@@ -63,7 +62,6 @@ export default function ActiveRecallPage() {
       setForgeInput(''); setGradingState('idle'); setAiFeedback('');
   }
 
-  // --- ⚡ DYNAMIC THREAT GENERATION ⚡ ---
   const generateInterrogation = (card: Vocab) => {
       const r = Math.random();
       let prompt = '';
@@ -88,7 +86,6 @@ export default function ActiveRecallPage() {
       setInterrogationPrompt(prompt);
   }
 
-  // --- ⚡ REAL-TIME NEURAL GRADING (GEMINI AI) ⚡ ---
   const submitInterrogation = async (e: React.FormEvent) => {
       e.preventDefault()
       if (!forgeInput.trim() || gradingState === 'grading') return;
@@ -96,21 +93,20 @@ export default function ActiveRecallPage() {
       setGradingState('grading')
       const card = deck[currentIndex]
 
-      // Instructing Gemini to act as a strict binary evaluator
       const customPrompt = `You are a strict German language professor algorithm. 
       Target Database Word: ${JSON.stringify(card)}
       Question Asked to Student: "${interrogationPrompt}"
       Student's Answer: "${forgeInput}"
       
       Task: Evaluate if the student's answer is correct based on the question asked. 
-      Rules: Be strict on German noun capitalization. Ignore minor punctuation. If they were asked to conjugate a verb for a specific pronoun, ensure the conjugation is perfectly accurate even if it isn't explicitly listed in the Database Word notes.
+      Rules: Be strict on German noun capitalization. Ignore minor punctuation. If they were asked to conjugate a verb for a specific pronoun, ensure the conjugation is perfectly accurate.
       
-      Return ONLY a raw JSON object (no markdown, no backticks). Format:
-      {"correct": boolean, "feedback": "Brief, blunt explanation. If wrong, provide the exact correct answer."}`;
+      Return ONLY a raw JSON object (no markdown). Format:
+      {"correct": boolean, "feedback": "Brief explanation. If wrong, provide the exact correct answer."}`;
 
       try {
           const res = await fetch('/api/analyze-video', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: "MOCK_ID_FOR_PROMPT", customPrompt })
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: "MOCK_ID", customPrompt })
           })
           const data = await res.json()
           
@@ -122,21 +118,19 @@ export default function ActiveRecallPage() {
                   setGradingState('correct');
                   setAiFeedback(parsed.feedback || "Execution perfect.");
                   setComboMultiplier(prev => prev + 1);
-                  // Auto-advance after 1.5 seconds, registering a 'Good' (4) score
                   setTimeout(() => processReview(4), 1500);
               } else {
                   setGradingState('incorrect');
                   setAiFeedback(parsed.feedback || "Incorrect execution.");
-                  setComboMultiplier(0); // Break combo
+                  setComboMultiplier(0); 
               }
           }
       } catch (err) {
           setGradingState('incorrect');
-          setAiFeedback("System error. Neural link failed to parse response.");
+          setAiFeedback("System error. Neural link failed.");
       }
   }
 
-  // SuperMemo-2 Spaced Repetition Algorithm
   async function processReview(grade: number) {
       const card = deck[currentIndex]
       let interval = card.interval || 0;
@@ -166,20 +160,19 @@ export default function ActiveRecallPage() {
       } else setDeck([])
   }
 
-  // Classic Flashcard Hook
   async function generateMemoryHook() {
       const currentWord = deck[currentIndex]; if (!currentWord) return;
       setIsFetchingHook(true)
-      const customPrompt = `You are a memory expert helping a student memorize vocabulary. Create a mnemonic device for the ${langMode === 'de' ? 'German' : 'English'} word "${currentWord.word}" which means "${currentWord.translation || currentWord.definition}". Rules: 1. Provide exactly ONE highly relevant emoji. 2. Write ONE short, bizarre, and funny English sentence linking the sound of the word to its meaning. Format strictly like this: EMOJI: [emoji] HOOK: [your sentence]`
+      const customPrompt = `You are a memory expert. Create a mnemonic device for the ${langMode === 'de' ? 'German' : 'English'} word "${currentWord.word}" meaning "${currentWord.translation || currentWord.definition}". Format strictly: EMOJI: [emoji] HOOK: [sentence]`
       try {
-        const res = await fetch('/api/analyze-video', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: "MOCK_ID_FOR_PROMPT", customPrompt }) })
+        const res = await fetch('/api/analyze-video', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: "MOCK_ID", customPrompt }) })
         const data = await res.json()
         if (data.analysis) {
             const text = data.analysis;
             const emojiMatch = text.match(/EMOJI:\s*(.+)/); const hookMatch = text.match(/HOOK:\s*(.+)/);
             setAiHook({ emoji: emojiMatch ? emojiMatch[1] : '🧠', sentence: hookMatch ? hookMatch[1] : text.replace('### 🤖 AI Analysis\n', '') })
         }
-      } catch(e) { setAiHook({ emoji: '⚠️', sentence: "Failed to generate neural hook." }) }
+      } catch(e) { setAiHook({ emoji: '⚠️', sentence: "Failed to generate hook." }) }
       setIsFetchingHook(false)
   }
 
@@ -190,14 +183,14 @@ export default function ActiveRecallPage() {
       return "text-slate-400"
   }
 
-  if (isLoading) return <div className="flex flex-col items-center justify-center h-[60vh] text-indigo-500 animate-pulse"><Brain size={50} /><p className="mt-4 font-black tracking-widest uppercase text-xs">Booting Neural Engine...</p></div>
+  if (isLoading) return <div className="flex flex-col items-center justify-center h-[60vh] text-indigo-500 animate-pulse"><Brain size={50} /><p className="mt-4 font-black tracking-widest uppercase text-xs">Booting Engine...</p></div>
 
   if (deck.length === 0) {
       return (
           <div className="max-w-4xl mx-auto py-20 px-4 text-center animate-in fade-in">
               <div className="w-24 h-24 bg-emerald-100 text-emerald-500 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(16,185,129,0.2)]"><CheckCircle2 size={48} /></div>
               <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-4">All Caught Up!</h2>
-              <p className="text-slate-500 font-medium max-w-md mx-auto">Your neural pathways are optimized for the day. The SM-2 Algorithm will schedule your next reviews.</p>
+              <p className="text-slate-500 font-medium max-w-md mx-auto">Your neural pathways are optimized for the day.</p>
               <div className="flex justify-center mt-10 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl w-fit mx-auto border border-slate-200 dark:border-slate-800 shadow-sm">
                  <button onClick={() => setLangMode('en')} className={cn("px-6 py-2.5 rounded-xl text-sm font-bold transition-all", langMode === 'en' ? "bg-white dark:bg-slate-800 text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300")}>🇬🇧 English</button>
                  <button onClick={() => setLangMode('de')} className={cn("px-6 py-2.5 rounded-xl text-sm font-bold transition-all", langMode === 'de' ? "bg-amber-500 text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300")}>🇩🇪 Deutsch</button>
@@ -211,7 +204,6 @@ export default function ActiveRecallPage() {
   return (
     <div className="max-w-4xl mx-auto pb-32 animate-in fade-in duration-500 px-4 md:px-8">
       
-      {/* HEADER & TOGGLES */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 mt-4 border-b border-slate-200 dark:border-slate-800/50 pb-8">
         <div>
           <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-white dark:to-slate-400 flex items-center gap-4 tracking-tight">
@@ -233,7 +225,6 @@ export default function ActiveRecallPage() {
         </div>
       </header>
 
-      {/* PROGRESS BAR & COMBO METRIC */}
       <div className="mb-8 flex items-end justify-between">
           <div className="flex-1 mr-8">
               <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
@@ -253,16 +244,29 @@ export default function ActiveRecallPage() {
           )}
       </div>
 
-      {/* ============================================================================
-          MODE 1: CLASSIC FLASHCARDS
+{/* ============================================================================
+          MODE 1: CLASSIC FLASHCARDS (INLINE 3D PHYSICS OVERRIDE)
           ============================================================================ */}
       {drillMode === 'flashcard' && (
           <div className="animate-in slide-in-from-left-4">
-              <div className="relative w-full h-[400px] md:h-[450px] perspective-1000 group">
-                  <div className={cn("w-full h-full transition-all duration-500 transform-style-3d cursor-pointer shadow-2xl rounded-[3rem]", isFlipped ? "rotate-y-180" : "")} onClick={() => !isFlipped && setIsFlipped(true)}>
+              <div 
+                  className="relative w-full h-[400px] md:h-[450px] cursor-pointer group"
+                  style={{ perspective: '1000px' }}
+                  onClick={() => !isFlipped && setIsFlipped(true)}
+              >
+                  <div 
+                      className="w-full h-full relative transition-transform duration-700 shadow-2xl rounded-[3rem]"
+                      style={{ 
+                          transformStyle: 'preserve-3d', 
+                          transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' 
+                      }}
+                  >
                       
-                      {/* FRONT OF CARD */}
-                      <div className={cn("absolute inset-0 backface-hidden bg-white dark:bg-slate-900/80 dark:backdrop-blur-xl rounded-[3rem] border border-slate-200 dark:border-white/10 flex flex-col items-center justify-center p-8 text-center", !isFlipped ? "z-20" : "z-0")}>
+                      {/* FRONT FACE (Word) */}
+                      <div 
+                          className="absolute inset-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[3rem] flex flex-col items-center justify-center p-8 text-center"
+                          style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+                      >
                          <span className="absolute top-8 text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 dark:bg-white/5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10">{currentCard.word_type || "Vocabulary"}</span>
                          <div className="text-6xl mb-6 drop-shadow-xl">{aiHook ? aiHook.emoji : '🧠'}</div>
                          <h2 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -272,8 +276,15 @@ export default function ActiveRecallPage() {
                          <p className="absolute bottom-8 text-slate-400 font-bold animate-pulse flex items-center gap-2"><RefreshCcw size={16} /> Tap to flip</p>
                       </div>
 
-                      {/* BACK OF CARD */}
-                      <div className={cn("absolute inset-0 backface-hidden rotate-y-180 bg-indigo-50 dark:bg-indigo-900/40 dark:backdrop-blur-xl rounded-[3rem] border-2 border-indigo-200 dark:border-indigo-500/30 flex flex-col items-center justify-start p-8 text-center overflow-y-auto", isFlipped ? "z-20" : "z-0")}>
+                      {/* BACK FACE (Translation) */}
+                      <div 
+                          className="absolute inset-0 bg-indigo-50 dark:bg-indigo-900/40 rounded-[3rem] border-2 border-indigo-200 dark:border-indigo-500/30 flex flex-col items-center justify-start p-8 text-center overflow-y-auto"
+                          style={{ 
+                              backfaceVisibility: 'hidden', 
+                              WebkitBackfaceVisibility: 'hidden',
+                              transform: 'rotateY(180deg)' 
+                          }}
+                      >
                          <h3 className="text-3xl md:text-5xl font-black text-indigo-900 dark:text-white mb-6 mt-auto pt-4">{currentCard.translation || currentCard.definition}</h3>
                          {(currentCard.plural_form || currentCard.conjugation) && (
                              <div className="bg-white/60 dark:bg-black/20 p-4 rounded-2xl w-full max-w-sm text-sm font-medium text-slate-700 dark:text-slate-300 mb-6 border border-indigo-100 dark:border-white/5 shadow-inner">
@@ -294,6 +305,7 @@ export default function ActiveRecallPage() {
                              )}
                          </div>
                       </div>
+
                   </div>
               </div>
 
@@ -313,9 +325,6 @@ export default function ActiveRecallPage() {
           </div>
       )}
 
-      {/* ============================================================================
-          MODE 2: AI INQUISITOR ENGINE (Dynamic Multi-variate Testing)
-          ============================================================================ */}
       {drillMode === 'forge' && (
           <div className="animate-in slide-in-from-right-4">
              <div className={cn(
@@ -330,7 +339,6 @@ export default function ActiveRecallPage() {
                      <div className="absolute inset-0 bg-indigo-500/5 animate-pulse z-0 pointer-events-none"></div>
                  )}
 
-                 {/* The AI Generated Interrogation Prompt */}
                  <div className="text-center mb-10 relative z-10">
                      <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-100 dark:border-indigo-500/20 flex items-center justify-center gap-2 w-fit mx-auto">
                          <Crosshair size={12}/> Target Aquired
@@ -340,7 +348,6 @@ export default function ActiveRecallPage() {
                      </h2>
                  </div>
 
-                 {/* The Command Line Input */}
                  <form onSubmit={submitInterrogation} className="w-full max-w-lg mx-auto flex flex-col gap-4 relative z-10">
                      <div className="relative">
                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -365,7 +372,6 @@ export default function ActiveRecallPage() {
                      )}
                  </form>
 
-                 {/* AI Feedback States */}
                  {gradingState === 'correct' && (
                      <div className="mt-8 text-center animate-in zoom-in-95 relative z-10">
                          <div className="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(16,185,129,0.5)]"><CheckCircle2 size={32} /></div>
@@ -391,7 +397,6 @@ export default function ActiveRecallPage() {
              </div>
           </div>
       )}
-
     </div>
   )
 }
