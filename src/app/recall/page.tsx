@@ -86,6 +86,7 @@ export default function ActiveRecallPage() {
       setInterrogationPrompt(prompt);
   }
 
+// --- ⚡ REAL-TIME NEURAL GRADING ⚡ ---
   const submitInterrogation = async (e: React.FormEvent) => {
       e.preventDefault()
       if (!forgeInput.trim() || gradingState === 'grading') return;
@@ -105,14 +106,17 @@ export default function ActiveRecallPage() {
       {"correct": boolean, "feedback": "Brief explanation. If wrong, provide the exact correct answer."}`;
 
       try {
-          const res = await fetch('/api/analyze-video', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: "MOCK_ID", customPrompt })
+          // 🎯 POINTING TO THE NEW TUTOR API
+          const res = await fetch('/api/ai-tutor', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ prompt: customPrompt, expectJson: true })
           })
+          
+          if (!res.ok) throw new Error("API Failed");
           const data = await res.json()
           
-          if (data.analysis) {
-              const cleanJson = data.analysis.replace(/```json/g, '').replace(/```/g, '').trim();
-              const parsed = JSON.parse(cleanJson);
+          if (data.result) {
+              const parsed = data.result;
               
               if (parsed.correct) {
                   setGradingState('correct');
@@ -124,10 +128,13 @@ export default function ActiveRecallPage() {
                   setAiFeedback(parsed.feedback || "Incorrect execution.");
                   setComboMultiplier(0); 
               }
+          } else {
+              throw new Error("No data returned");
           }
       } catch (err) {
+          // 🎯 PROPER ERROR HANDLING SO IT DOESN'T HANG FOREVER
           setGradingState('incorrect');
-          setAiFeedback("System error. Neural link failed.");
+          setAiFeedback("System error. Neural link failed. Please retry.");
       }
   }
 
@@ -160,15 +167,22 @@ export default function ActiveRecallPage() {
       } else setDeck([])
   }
 
+// --- ⚡ MNEMONIC GENERATOR ⚡ ---
   async function generateMemoryHook() {
       const currentWord = deck[currentIndex]; if (!currentWord) return;
       setIsFetchingHook(true)
       const customPrompt = `You are a memory expert. Create a mnemonic device for the ${langMode === 'de' ? 'German' : 'English'} word "${currentWord.word}" meaning "${currentWord.translation || currentWord.definition}". Format strictly: EMOJI: [emoji] HOOK: [sentence]`
+      
       try {
-        const res = await fetch('/api/analyze-video', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: "MOCK_ID", customPrompt }) })
+        // 🎯 POINTING TO THE NEW TUTOR API
+        const res = await fetch('/api/ai-tutor', { 
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ prompt: customPrompt, expectJson: false }) 
+        })
         const data = await res.json()
-        if (data.analysis) {
-            const text = data.analysis;
+        
+        if (data.result) {
+            const text = data.result;
             const emojiMatch = text.match(/EMOJI:\s*(.+)/); const hookMatch = text.match(/HOOK:\s*(.+)/);
             setAiHook({ emoji: emojiMatch ? emojiMatch[1] : '🧠', sentence: hookMatch ? hookMatch[1] : text.replace('### 🤖 AI Analysis\n', '') })
         }

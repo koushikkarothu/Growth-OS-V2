@@ -55,43 +55,45 @@ export default function AICoachPage() {
   }
 
   async function autoFillWord() {
-      if (!word.trim()) return alert("Type a word first to extract its data.")
+      // NOTE: Use your correct local state variables (e.g., vWord/vTrans if in Theater, or word/translation if in Coach)
+      const targetWord = word; // or vWord
+      if (!targetWord.trim()) return alert("Type a word first to extract its data.")
+      
       setIsAutoFilling(true)
       
-      // 1. Aggressive Prompting Protocol
+      // 🎯 DUAL PROMPT PROTOCOL: JSON for German, Plain Text for English
       const customPrompt = langMode === 'de' 
-        ? `Analyze the German word "${word}". Return ONLY a raw JSON object with these exact keys: "translation" (English meaning), "word_type" ("Noun", "Verb", "Adjective", "Adverb", "Preposition", "Other"), "gender" ("der", "die", "das", or null if not a noun), "plural" (plural form in German, or null), "conjugation" (brief conjugation notes like 'ich gehe, du gehst, er/sie/es geht, wir gehen, ihr geht, sie/Sie gehen' or null). Do not use markdown formatting or code blocks.`
-        : `Analyze the English word "${word}". Return ONLY a raw JSON object with this exact key: "translation" (a clear, concise dictionary definition). Do not use markdown formatting or code blocks.`
+        ? `Analyze the German word "${targetWord}". Return ONLY a raw JSON object with these exact keys: "translation" (English meaning), "word_type" ("Noun", "Verb", "Adjective", "Adverb", "Preposition", "Other"), "gender" ("der", "die", "das", or null if not a noun), "plural" (plural form in German, or null), "conjugation" (brief conjugation notes like 'ich gehe, du gehst, er/sie/es geht, wir gehen, ihr geht, sie/Sie gehen' or null). Do not use markdown formatting or code blocks.`
+        : `Analyze the English word "${targetWord}". Return ONLY a raw JSON object with this exact key: "translation" (a clear, concise dictionary definition). Do not use markdown formatting or code blocks.`
 
       try {
-          const res = await fetch('/api/analyze-video', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: "MOCK_ID", customPrompt }) })
+          // 🎯 POINTING TO THE NEW TUTOR API
+          const res = await fetch('/api/ai-tutor', { 
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json' }, 
+              body: JSON.stringify({ prompt: customPrompt, expectJson: langMode === 'de' }) 
+          })
+          
+          if (!res.ok) throw new Error("API Failed");
           const data = await res.json()
           
-          if (data.analysis) {
-              const parsed = JSON.parse(data.analysis.replace(/```json/g, '').replace(/```/g, '').trim());
-              
+          if (data.result) {
               if (langMode === 'en') {
-                  // 2. Aggressive Parsing Protocol for Nested Objects
-                  let engDef = parsed.translation || parsed.definition || parsed;
-                  
-                  // If the AI still returned a nested object, extract the first string value
-                  if (typeof engDef === 'object' && engDef !== null) {
-                      const objectValues = Object.values(engDef);
-                      const firstString = objectValues.find(val => typeof val === 'string');
-                      engDef = firstString ? firstString : JSON.stringify(engDef);
-                  }
-                  
-                  setTranslation(engDef as string);
+                  // 🎯 ENGLISH: Direct plain text mapping. No [object Object] errors.
+                  setTranslation(data.result); // or setVTrans
               } else {
-                 if(parsed.translation) setTranslation(parsed.translation);
-                 if(parsed.word_type) setWordType(parsed.word_type);
-                 if(parsed.gender && parsed.word_type === 'Noun') setGender(parsed.gender);
-                 if(parsed.plural) setPlural(parsed.plural);
-                 if(parsed.conjugation) setConjugation(parsed.conjugation);
+                 // 🎯 GERMAN: Mapped from the strictly parsed JSON object
+                 const parsed = data.result; 
+                 if(parsed.translation) setTranslation(parsed.translation); // or setVTrans
+                 if(parsed.word_type) setWordType(parsed.word_type); // or setVType
+                 if(parsed.gender && parsed.word_type === 'Noun') setGender(parsed.gender); // or setVGender
+                 if(parsed.plural) setPlural(parsed.plural); // or setVPlural
+                 if(parsed.conjugation) setConjugation(parsed.conjugation); // or setVConj
               }
           }
       } catch (e) { 
-          alert("Auto-fill analysis failed. The AI returned an unreadable format.") 
+          console.error(e);
+          alert("Auto-fill analysis failed. Neural link disrupted.") 
       }
       setIsAutoFilling(false)
   }
