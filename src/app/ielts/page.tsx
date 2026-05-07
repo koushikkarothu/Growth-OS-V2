@@ -132,14 +132,15 @@ export default function IELTSForgePage() {
   const submitForGrading = async () => {
       if (wordCount < 20) return setErrorMsg("Commander, write at least 20 words before requesting an analysis.");
       
+      // Calculate how many minutes they actually spent writing
+      const totalTimeAllocated = taskType === 'Task 1 (Academic)' ? 20 * 60 : 40 * 60;
+      const timeSpentSeconds = totalTimeAllocated - timeLeft;
+      const timeSpentMinutes = Math.max(1, Math.round(timeSpentSeconds / 60));
+      
       setTimerActive(false)
       setIsAnalyzing(true)
       setErrorMsg('')
       setFeedback(null)
-
-      // Calculate time spent (in minutes)
-      const timeSpentSeconds = totalTimeLimit - timeLeft;
-      const timeSpentMinutes = Math.max(1, Math.floor(timeSpentSeconds / 60)); // Minimum 1 minute logged
 
       try {
           const res = await fetch('/api/ielts', {
@@ -151,35 +152,41 @@ export default function IELTSForgePage() {
           if (res.ok && data.analysis) {
               setFeedback(data.analysis)
               await saveToHistory(data.analysis, currentPrompt.text, currentPrompt.image, essay, wordCount, taskType)
-              
-              // ⚡ NEW: Award XP based on Band Score (Multiplier)
-              // Base XP is 50. A band 9 gets (9 * 20) + 50 = 230 XP.
-              const bandScore = data.analysis.overallBand || 5;
-              const earnedXP = Math.floor(50 + (bandScore * 20));
-              await awardXP(earnedXP);
 
-              // ⚡ NEW: Log time to Deep Work Mission
-              if (linkedMissionId) {
-                  const { data: { user } } = await supabase.auth.getUser();
-                  const targetMission = activeMissions.find(m => m.id === linkedMissionId);
+              // 🎯 OS INTEGRATION: Log Time and Award XP
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                  // XP scales with band score (e.g., Band 8.5 * 20 = 170 XP)
+                  const xpAward = Math.round(data.analysis.overallBand * 20);
                   
-                  if (targetMission && user) {
-                      const todayStr = new Date().toISOString().split('T')[0];
-                      
-                      // Log the time to the mission
-                      await supabase.from('tasks').update({ 
-                          time_logged: (targetMission.time_logged || 0) + timeSpentMinutes,
-                          last_completed_at: todayStr // Mark as active today
-                      }).eq('id', linkedMissionId);
+                  // Add XP to Profile
+                  const { data: profile } = await supabase.from('profiles').select('xp').eq('id', user.id).single();
+                  if (profile) {
+                      await supabase.from('profiles').update({ xp: (profile.xp || 0) + xpAward }).eq('id', user.id);
+                  }
 
-                      // Create a task log entry
+                  // Find an active dashboard task related to IELTS to log the time
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  const { data: activeTasks } = await supabase.from('tasks').select('*')
+                      .eq('user_id', user.id)
+                      .neq('status', 'completed')
+                      .neq('last_completed_at', todayStr)
+                      .ilike('title', '%ielts%'); // Looks for any task containing "ielts"
+
+                  if (activeTasks && activeTasks.length > 0) {
+                      const targetTask = activeTasks[0];
+                      await supabase.from('tasks').update({ 
+                          time_logged: (targetTask.time_logged || 0) + timeSpentMinutes,
+                          last_completed_at: todayStr, 
+                          current_streak: targetTask.current_streak + 1
+                      }).eq('id', targetTask.id);
+
                       await supabase.from('task_logs').insert([{ 
-                          user_id: user.id, task_id: linkedMissionId, date: todayStr, 
-                          duration_minutes: timeSpentMinutes, xp_earned: earnedXP 
+                          user_id: user.id, task_id: targetTask.id, date: todayStr, 
+                          duration_minutes: timeSpentMinutes, xp_earned: xpAward 
                       }]);
                   }
               }
-
           }
           else setErrorMsg(data.error || "Analysis failed.")
       } catch (err) {

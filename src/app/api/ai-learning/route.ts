@@ -1,73 +1,63 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
-import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Ensure API Key exists
-const apiKey = process.env.GEMINI_API_KEY
-if (!apiKey) {
-  console.error("❌ ERROR: GEMINI_API_KEY is missing in .env.local")
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+
+async function executeWithWaterfall(prompt: string) {
+    const modelsToTry = ["gemini-2.5-flash", "gemini-3.1-flash-lite-preview", "gemma-4-31b-it"];
+
+    for (const modelName of modelsToTry) {
+        try {
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const result = await model.generateContent(prompt);
+            return await result.response.text();
+        } catch (error: any) {
+            const isBypassable = error.status === 429 || error.status === 503 || error.status === 404;
+            if (isBypassable) continue; 
+            throw error; 
+        }
+    }
+    throw new Error("RATE_LIMIT_EXHAUSTED");
 }
-
-const genAI = new GoogleGenerativeAI(apiKey || '')
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }) //gemini-2.5-pro
 
 export async function POST(req: Request) {
   try {
-    const { action, domain, currentConcept, userQuestion } = await req.json()
-    console.log(`🤖 AI Request Received: ${action} for ${domain}`)
+    const { topic } = await req.json();
 
-    // SCENARIO 1: NEW DAILY CONCEPT
-    if (action === 'generate') {
-      const prompt = `
-        Teach me a new, fascinating concept about "${domain}".
-        It should be complex enough to be interesting but explained clearly.
-        
-        Return a valid JSON object strictly in this format (no markdown):
+    if (!topic || topic.trim().length < 2) {
+        return NextResponse.json({ error: "Provide a valid topic." }, { status: 400 });
+    }
+
+    const systemPrompt = `You are a master educator. The user wants to learn about: "${topic}".
+    Create a highly structured, engaging "Deep Dive" mini-course.
+    
+    You MUST return ONLY a raw JSON object (no markdown formatting).
+    {
+      "title": "A captivating title for the course",
+      "overview": "A brief, 2-sentence summary of what will be learned.",
+      "chapters": [
         {
-          "topic": "The Name of the Concept",
-          "hook": "A short, catchy one-sentence summary.",
-          "content": "A detailed 2-paragraph explanation.",
-          "importance": "Why this matters in the real world."
+          "title": "Chapter 1 Title",
+          "content": "Detailed, highly engaging content. Use HTML formatting like <p>, <strong>, and <ul> for readability. Do NOT use markdown.",
+          "keyTakeaway": "One sentence summary."
         }
-      `
-      const result = await model.generateContent(prompt)
-      const response = await result.response
-      const text = response.text().replace(/```json/g, '').replace(/```/g, '').trim()
-      
-      console.log("✅ AI Response Success")
-      return NextResponse.json(JSON.parse(text))
+      ],
+      "finalQuiz": {
+        "question": "A challenging multiple-choice question.",
+        "options": ["A", "B", "C", "D"],
+        "correctIndex": 1,
+        "explanation": "Why this is correct."
+      }
     }
+    Note: Generate exactly 3 to 4 comprehensive chapters.`;
 
-    // SCENARIO 2: DEEP DIVE (Follow-up)
-    if (action === 'explain_more') {
-      const prompt = `
-        I am learning about "${currentConcept.topic}".
-        The user asked: "${userQuestion}"
-        
-        Provide a specific, clear answer to clarify this detail. Keep it under 150 words.
-      `
-      const result = await model.generateContent(prompt)
-      return NextResponse.json({ answer: result.response.text() })
-    }
-
-    // SCENARIO 3: QUIZ TIME
-    if (action === 'quiz') {
-      const prompt = `
-        Based on the topic "${currentConcept.topic}", generate 3 multiple-choice questions.
-        Return valid JSON array: 
-        [
-          {"q": "Question text?", "options": ["A", "B", "C"], "correct": 0} // correct is index
-        ]
-      `
-      const result = await model.generateContent(prompt)
-      const text = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim()
-      return NextResponse.json(JSON.parse(text))
-    }
-
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+    const analysisText = await executeWithWaterfall(systemPrompt);
+    const cleanJson = analysisText.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    return NextResponse.json({ course: JSON.parse(cleanJson) });
 
   } catch (error: any) {
-    console.error("🔥 AI GENERATION FAILED:", error.message)
-    // Return the actual error message so the frontend can see it
-    return NextResponse.json({ error: error.message || 'AI failed to respond' }, { status: 500 })
+    console.error("Deep Dive Generation Error:", error);
+    return NextResponse.json({ error: 'Failed to architect course.' }, { status: 500 });
   }
 }

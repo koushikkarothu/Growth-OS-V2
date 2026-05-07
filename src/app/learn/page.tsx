@@ -1,127 +1,153 @@
 'use client'
 
 import { useState } from 'react'
-import { Sparkles, BookOpen, MessageCircle, Save, HelpCircle, ArrowRight, Loader2, GraduationCap } from 'lucide-react'
-import CreateNoteModal from '@/components/CreateNoteModal'
+import { BookOpen, Search, ChevronRight, CheckCircle2, AlertTriangle, Zap, Target } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { supabase } from '@/lib/supabaseClient'
 
 export default function LearnPage() {
-  const [loading, setLoading] = useState(false)
-  const [domain, setDomain] = useState('General Knowledge')
-  const [concept, setConcept] = useState<any>(null)
-  const [deepDiveAnswer, setDeepDiveAnswer] = useState('')
-  const [quizQuestions, setQuizQuestions] = useState<any[]>([])
-  const [showDeepDive, setShowDeepDive] = useState(false)
-  const [userQuestion, setUserQuestion] = useState('')
-  const [showQuiz, setShowQuiz] = useState(false)
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false)
+  const [topicInput, setTopicInput] = useState('')
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [courseData, setCourseData] = useState<any>(null)
+  const [activeChapter, setActiveChapter] = useState(0)
+  
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
+  const [quizStatus, setQuizStatus] = useState<'idle' | 'evaluating' | 'correct' | 'incorrect'>('idle')
 
-  async function generateConcept() {
-    setLoading(true); setConcept(null); setDeepDiveAnswer(''); setQuizQuestions([]); setShowQuiz(false); setShowDeepDive(false)
-    try {
-      const res = await fetch('/api/ai-learning', { method: 'POST', body: JSON.stringify({ action: 'generate', domain }) })
-      const data = await res.json()
-      setConcept(data)
-    } catch (e) { alert('Failed to teach you. Try again!') } finally { setLoading(false) }
+  const generateCourse = async (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!topicInput.trim()) return
+      
+      setIsGenerating(true)
+      setCourseData(null); setActiveChapter(0); setSelectedAnswer(null); setQuizStatus('idle')
+
+      try {
+          const res = await fetch('/api/ai-learning', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ topic: topicInput })
+          })
+          const data = await res.json()
+          if (data.course) setCourseData(data.course)
+      } catch (err) { alert("Failed to generate course.") }
+      setIsGenerating(false)
   }
 
-  async function askDeepDive() {
-    if (!userQuestion) return; setLoading(true)
-    try {
-      const res = await fetch('/api/ai-learning', { method: 'POST', body: JSON.stringify({ action: 'explain_more', currentConcept: concept, userQuestion }) })
-      const data = await res.json(); setDeepDiveAnswer(data.answer)
-    } catch (e) { alert('AI got confused.') } finally { setLoading(false) }
-  }
+  const awardXP = async (amount: number) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase.from('profiles').select('xp').eq('id', user.id).single();
+      if (profile) await supabase.from('profiles').update({ xp: (profile.xp || 0) + amount }).eq('id', user.id);
+  };
 
-  async function startQuiz() {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/ai-learning', { method: 'POST', body: JSON.stringify({ action: 'quiz', currentConcept: concept }) })
-      const data = await res.json(); setQuizQuestions(data); setShowQuiz(true)
-    } catch (e) { alert('Quiz generation failed.') } finally { setLoading(false) }
+  const handleQuizSubmit = () => {
+      if (selectedAnswer === null || !courseData) return;
+      setQuizStatus('evaluating');
+      setTimeout(() => {
+          if (selectedAnswer === courseData.finalQuiz.correctIndex) {
+              setQuizStatus('correct'); awardXP(100);
+          } else setQuizStatus('incorrect');
+      }, 800);
   }
 
   return (
-    <div className="max-w-4xl mx-auto pb-20 animate-in fade-in duration-500">
-      <CreateNoteModal isOpen={isSaveModalOpen} onClose={() => setIsSaveModalOpen(false)} onNoteAdded={() => alert('Saved to Vault!')} initialData={concept ? { topic: domain, concept: concept.topic, details: `${concept.content}\n\nWhy it matters: ${concept.importance}` } : null} />
-
-      <header className="mb-10 text-center">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2 flex items-center justify-center gap-2"><Sparkles className="text-amber-500 fill-amber-500" /> Daily Knowledge Download</h1>
-        <p className="text-slate-500 dark:text-slate-400 font-medium">Expand your horizons, one concept at a time.</p>
+    <div className="max-w-6xl mx-auto pb-32 animate-in fade-in duration-500 px-4 md:px-8">
+      <header className="mb-12 border-b border-slate-200 dark:border-slate-800 pb-8 mt-4">
+          <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white flex items-center gap-4 tracking-tight">
+             <div className="p-3 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl border border-indigo-100 dark:border-indigo-500/20"><BookOpen className="text-indigo-600 dark:text-indigo-400" size={32} /></div>
+             Deep Dive Engine
+          </h1>
+          <p className="text-slate-500 font-bold mt-3 text-sm tracking-wide uppercase">ON-DEMAND CURRICULUM ARCHITECT</p>
       </header>
 
-      <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-10">
-        <div className="relative">
-           <select className="appearance-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-6 py-3.5 pr-12 outline-none focus:border-indigo-500 font-bold shadow-sm cursor-pointer" value={domain} onChange={(e) => setDomain(e.target.value)}>
-             <option>General Knowledge</option><option>Computer Science</option><option>Business & Finance</option><option>Psychology</option><option>History</option><option>Quantum Physics</option>
-           </select>
-           <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">▼</div>
-        </div>
-        <button onClick={generateConcept} disabled={loading} className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-200 dark:shadow-none transition-all flex items-center gap-2 active:scale-95 disabled:opacity-70">
-          {loading ? <Loader2 className="animate-spin" /> : <BookOpen size={20} />} Teach Me Something
-        </button>
-      </div>
-
-      {concept && !showQuiz && (
-        <div className="animate-in slide-in-from-bottom-8 duration-700">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] p-8 md:p-12 shadow-xl shadow-slate-200/50 dark:shadow-none relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500" />
-            
-            <div className="flex justify-between items-start mb-6">
-                <span className="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Today's Topic</span>
-                <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400"><GraduationCap size={20} /></div>
-            </div>
-
-            <h2 className="text-4xl font-extrabold text-slate-900 dark:text-white mb-8 leading-tight">{concept.topic}</h2>
-            
-            <div className="space-y-8">
-              <p className="text-xl font-medium text-slate-800 dark:text-slate-200 border-l-4 border-indigo-500 pl-6 italic leading-relaxed">"{concept.hook}"</p>
-              <div className="prose prose-slate dark:prose-invert prose-lg max-w-none text-slate-600 dark:text-slate-300 leading-relaxed"><p>{concept.content}</p></div>
-              <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Why this matters</h3>
-                <p className="text-slate-700 dark:text-slate-300 font-medium">{concept.importance}</p>
-              </div>
-            </div>
-
-            {deepDiveAnswer && (
-              <div className="mt-8 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900/30 p-6 rounded-2xl animate-in fade-in">
-                <h4 className="text-indigo-700 dark:text-indigo-400 font-bold mb-2 flex items-center gap-2"><MessageCircle size={18} /> AI Clarification:</h4>
-                <p className="text-indigo-900/80 dark:text-indigo-200 leading-relaxed">{deepDiveAnswer}</p>
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-3 mt-10 pt-10 border-t border-slate-100 dark:border-slate-800">
-              <button onClick={() => setIsSaveModalOpen(true)} className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 text-slate-600 dark:text-slate-300 rounded-xl font-bold transition-all shadow-sm"><Save size={18} /> Save to Vault</button>
-              <button onClick={() => setShowDeepDive(!showDeepDive)} className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 text-slate-600 dark:text-slate-300 rounded-xl font-bold transition-all shadow-sm"><HelpCircle size={18} /> Ask Detail</button>
-              <button onClick={startQuiz} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-200 dark:shadow-none ml-auto active:scale-95">Quiz Me <ArrowRight size={18} /></button>
-            </div>
-
-            {showDeepDive && (
-              <div className="mt-6 flex gap-2 animate-in slide-in-from-top-2">
-                <input type="text" placeholder="What specifically do you want to know more about?" className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-5 py-4 text-slate-900 dark:text-white outline-none focus:border-indigo-500 transition-all" value={userQuestion} onChange={(e) => setUserQuestion(e.target.value)} />
-                <button onClick={askDeepDive} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 rounded-xl font-bold transition-all">Ask</button>
-              </div>
-            )}
+      {!courseData && (
+          <div className="max-w-2xl mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 md:p-12 rounded-[3rem] shadow-xl text-center mt-10">
+              <div className="w-20 h-20 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 mx-auto rounded-full flex items-center justify-center mb-6"><Target size={32} /></div>
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-4">What do you want to master?</h2>
+              <p className="text-slate-500 font-medium mb-8 text-sm">Input any topic. The AI will forge a structured, multi-chapter mini-course in seconds. e.g., "The Complete History of Indian Cricket" or "How Quantum Computers Work".</p>
+              
+              <form onSubmit={generateCourse} className="relative">
+                  <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400"><Search size={20} /></div>
+                  <input type="text" placeholder="Design a course on..." value={topicInput} onChange={(e) => setTopicInput(e.target.value)} disabled={isGenerating} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl pl-14 pr-6 py-5 text-lg font-bold outline-none focus:border-indigo-500 dark:text-white transition-all shadow-inner disabled:opacity-50" />
+                  <button type="submit" disabled={isGenerating || !topicInput} className="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg disabled:opacity-50">{isGenerating ? "Architecting Syllabus..." : "Generate Course"}</button>
+              </form>
           </div>
-        </div>
       )}
 
-      {showQuiz && (
-        <div className="max-w-2xl mx-auto space-y-6 animate-in zoom-in duration-300 mt-10">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Quick Check</h2>
-            <button onClick={() => setShowQuiz(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-sm">Exit Quiz</button>
-          </div>
-          {quizQuestions.map((q, idx) => (
-            <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-[2rem] shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">{idx + 1}. {q.q}</h3>
-              <div className="space-y-3">
-                {q.options.map((opt: string, i: number) => (
-                  <button key={i} onClick={(e) => { const btn = e.currentTarget; if (i === q.correct) { btn.className = "w-full text-left p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 font-bold transition-all shadow-sm"; btn.innerText = opt + " ✅ Correct!"; } else { btn.className = "w-full text-left p-4 rounded-xl border-2 border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-medium transition-all"; btn.innerText = opt + " ❌"; } }} className="w-full text-left p-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-slate-600 dark:text-slate-300 font-medium">{opt}</button>
-                ))}
+      {courseData && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-bottom-8">
+              <div className="lg:col-span-4 flex flex-col gap-4">
+                  <div className="bg-slate-900 text-white p-6 rounded-[2rem] shadow-lg border border-slate-800">
+                      <h3 className="font-black text-xl mb-2">{courseData.title}</h3>
+                      <p className="text-slate-400 text-sm font-medium">{courseData.overview}</p>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-[2rem] shadow-sm flex flex-col gap-2">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-4 pt-2 pb-1">Syllabus</h4>
+                      {courseData.chapters.map((chap: any, idx: number) => (
+                          <button key={idx} onClick={() => setActiveChapter(idx)} className={cn("text-left px-4 py-3 rounded-xl font-bold text-sm transition-all", activeChapter === idx ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800")}>{idx + 1}. {chap.title}</button>
+                      ))}
+                      <button onClick={() => setActiveChapter(courseData.chapters.length)} className={cn("text-left px-4 py-3 rounded-xl font-bold text-sm transition-all mt-2 border border-dashed", activeChapter === courseData.chapters.length ? "bg-amber-50 dark:bg-amber-500/10 border-amber-500 text-amber-700 dark:text-amber-400" : "border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800")}>🎯 Final Knowledge Check</button>
+                  </div>
+                  <button onClick={() => setCourseData(null)} className="text-slate-500 font-bold text-sm py-4 hover:text-indigo-500 transition-colors">Start a New Topic</button>
               </div>
-            </div>
-          ))}
-        </div>
+
+              <div className="lg:col-span-8">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 md:p-12 rounded-[3rem] shadow-lg min-h-[500px] flex flex-col relative overflow-hidden">
+                      {activeChapter < courseData.chapters.length ? (
+                          <div className="animate-in fade-in duration-500">
+                              <span className="text-indigo-500 font-black uppercase tracking-widest text-xs mb-4 block">Chapter {activeChapter + 1}</span>
+                              <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-8 leading-tight">{courseData.chapters[activeChapter].title}</h2>
+                              <div className="text-slate-700 dark:text-slate-300 font-medium text-lg leading-relaxed space-y-6 prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: courseData.chapters[activeChapter].content }} />
+                              <div className="mt-12 p-6 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl">
+                                  <h4 className="text-emerald-800 dark:text-emerald-400 font-black uppercase tracking-widest text-[10px] mb-2">Key Takeaway</h4>
+                                  <p className="text-emerald-900 dark:text-emerald-100 font-bold">{courseData.chapters[activeChapter].keyTakeaway}</p>
+                              </div>
+                              <div className="mt-10 flex justify-end">
+                                  <button onClick={() => setActiveChapter(prev => prev + 1)} className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 py-4 rounded-xl font-black uppercase tracking-widest shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2">
+                                      {activeChapter === courseData.chapters.length - 1 ? "Take Final Quiz" : "Next Chapter"} <ChevronRight size={18} />
+                                  </button>
+                              </div>
+                          </div>
+                      ) : (
+                          <div className="animate-in slide-in-from-right-8 duration-500 h-full flex flex-col justify-center">
+                              <div className="text-center mb-10">
+                                  <div className="w-16 h-16 bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 rounded-full flex items-center justify-center mx-auto mb-6"><Zap size={32} /></div>
+                                  <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-4">Knowledge Check</h2>
+                                  <p className="text-lg text-slate-600 dark:text-slate-300 font-medium">{courseData.finalQuiz.question}</p>
+                              </div>
+                              <div className="flex flex-col gap-3 mb-10 max-w-lg mx-auto w-full">
+                                  {courseData.finalQuiz.options.map((opt: string, idx: number) => (
+                                      <button 
+                                          key={idx} onClick={() => quizStatus === 'idle' && setSelectedAnswer(idx)} disabled={quizStatus !== 'idle'}
+                                          className={cn("p-5 rounded-xl border-2 text-left font-bold transition-all text-sm md:text-base", 
+                                              selectedAnswer === idx ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300" : "border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-indigo-300",
+                                              (quizStatus === 'correct' || quizStatus === 'incorrect') && idx === courseData.finalQuiz.correctIndex ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300" : "",
+                                              quizStatus === 'incorrect' && selectedAnswer === idx ? "border-red-500 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300" : ""
+                                          )}
+                                      >
+                                          {opt}
+                                      </button>
+                                  ))}
+                              </div>
+                              {quizStatus === 'idle' && selectedAnswer !== null && <button onClick={handleQuizSubmit} className="w-full max-w-lg mx-auto bg-indigo-600 text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg hover:-translate-y-1">Submit Answer</button>}
+                              {quizStatus === 'correct' && (
+                                  <div className="text-center animate-in zoom-in-95 bg-emerald-50 dark:bg-emerald-900/20 p-6 rounded-2xl border border-emerald-200 dark:border-emerald-800">
+                                      <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-emerald-400 mb-2"><CheckCircle2 size={24} /> <span className="font-black uppercase tracking-widest">Correct! (+100 XP)</span></div>
+                                      <p className="text-emerald-900 dark:text-emerald-100 font-medium text-sm">{courseData.finalQuiz.explanation}</p>
+                                  </div>
+                              )}
+                              {quizStatus === 'incorrect' && (
+                                  <div className="text-center animate-in zoom-in-95 bg-red-50 dark:bg-red-900/20 p-6 rounded-2xl border border-red-200 dark:border-red-800">
+                                      <div className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 mb-2"><AlertTriangle size={24} /> <span className="font-black uppercase tracking-widest">Incorrect</span></div>
+                                      <p className="text-red-900 dark:text-red-100 font-medium text-sm mb-4">The correct answer was option {courseData.finalQuiz.correctIndex + 1}.</p>
+                                      <p className="text-slate-700 dark:text-slate-300 font-medium text-sm">{courseData.finalQuiz.explanation}</p>
+                                      <button onClick={() => {setQuizStatus('idle'); setSelectedAnswer(null)}} className="mt-6 text-sm font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white underline underline-offset-4">Try Again</button>
+                                  </div>
+                              )}
+                          </div>
+                      )}
+                  </div>
+              </div>
+          </div>
       )}
     </div>
   )
