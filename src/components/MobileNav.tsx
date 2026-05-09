@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
   LayoutGrid, Calendar, Trophy, Zap, PlaySquare, Brain,
-  BarChart2, Book, BrainCircuit, Mic, Menu, X, Map, PenTool 
+  BarChart2, Book, BrainCircuit, Mic, Menu, X, Map, PenTool, Globe 
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle' // <--- Imported
@@ -23,6 +23,7 @@ const allItems = [
   { name: 'Active Recall', icon: Zap, href: '/recall' },
   { name: 'Analytics', icon: BarChart2, href: '/analytics' },
   { name: 'Knowledge Vault', icon: Book, href: '/vault' },
+  { name: 'Global News', icon: Globe, href: '/briefing' },
   { name: 'IELTS Forge', icon: PenTool, href: '/ielts' }
 ]
 
