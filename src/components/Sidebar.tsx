@@ -5,13 +5,14 @@ import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { 
   LayoutGrid, Calendar, Trophy, Zap, Brain,
-  BarChart2, Book, BrainCircuit, Settings, LogOut, Mic, PlaySquare, PenTool, Globe
+  BarChart2, Book, BrainCircuit, Settings, LogOut, Mic, PlaySquare, PenTool, Globe, Clock
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Map } from 'lucide-react' // Add Map to imports
 
 const menuItems = [
   { name: 'Dashboard', icon: LayoutGrid, href: '/' },
+  { name: 'Chrono Map', icon: Clock, href: '/chrono' },
   { name: 'Master Plan', icon: Map, href: '/roadmap' }, // <--- ADDED HERE
   { name: 'Deep Work', icon: Brain, href: '/flow' }, // <--- ADD THIS
   { name: 'Planner', icon: Calendar, href: '/planner' },

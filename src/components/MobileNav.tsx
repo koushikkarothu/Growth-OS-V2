@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
   LayoutGrid, Calendar, Trophy, Zap, PlaySquare, Brain,
-  BarChart2, Book, BrainCircuit, Mic, Menu, X, Map, PenTool, Globe 
+  BarChart2, Book, BrainCircuit, Mic, Menu, X, Map, PenTool, Globe, Clock 
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle' // <--- Imported
@@ -13,6 +13,7 @@ import { ThemeToggle } from '@/components/ThemeToggle' // <--- Imported
 // 1. Define ALL items here
 const allItems = [
   { name: 'Dashboard', icon: LayoutGrid, href: '/' },
+  { name: 'Chrono Map', icon: Clock, href: '/chrono' },
   { name: 'Master Plan', icon: Map, href: '/roadmap' },
   { name: 'Deep Work', icon: Brain, href: '/flow' },
   { name: 'Planner', icon: Calendar, href: '/planner' },
