@@ -17,7 +17,7 @@ export default function FlowStatePage() {
   const [isActive, setIsActive] = useState(false)
   const [status, setStatus] = useState<'setup' | 'flowing' | 'success' | 'failed'>('setup')
   
-  // ⚡ NEW: Resolution State
+  // ⚡ Resolution State
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [sessionDuration, setSessionDuration] = useState(0); 
   
@@ -25,8 +25,26 @@ export default function FlowStatePage() {
   
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
+  // 🎯 NEW: Chrono Map Auto-Loader
   useEffect(() => {
-    fetchActiveTasks()
+    const initializeFlowState = async () => {
+        const fetchedTasks = await fetchActiveTasks()
+        
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search)
+            const queryTaskId = params.get('taskId')
+            const queryDuration = params.get('duration')
+
+            if (queryDuration && !isNaN(parseInt(queryDuration))) {
+                setDuration(parseInt(queryDuration))
+            }
+            if (queryTaskId && fetchedTasks) {
+                const targetTask = fetchedTasks.find(t => t.id === queryTaskId)
+                if (targetTask) setSelectedTask(targetTask)
+            }
+        }
+    }
+    initializeFlowState()
   }, [])
 
   useEffect(() => {
@@ -45,7 +63,9 @@ export default function FlowStatePage() {
     if (data) {
       const active = data.filter(t => t.last_completed_at !== todayStr && t.type !== 'Goal' && t.status !== 'completed')
       setTasks(active)
+      return active // 🎯 Required for the auto-loader to find the target
     }
+    return []
   }
 
   function startFlow() {
@@ -77,7 +97,7 @@ export default function FlowStatePage() {
     failFlow("You aborted the mission early.")
   }
 
-  // ⚡ NEW: Base completion triggers modal
+  // ⚡ Base completion triggers modal
   async function completeFlow() {
     if (timerRef.current) clearInterval(timerRef.current)
     setIsActive(false)
@@ -88,7 +108,7 @@ export default function FlowStatePage() {
     setShowCompletionModal(true);
   }
 
-  // ⚡ NEW: XP API Call
+  // ⚡ XP API Call
   const awardXP = async (amount: number) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -99,7 +119,7 @@ export default function FlowStatePage() {
       }
   };
 
-  // ⚡ NEW: Final Resolution Logic
+  // ⚡ Final Resolution Logic
   const handleMissionResolution = async (isFullyComplete: boolean) => {
       if (!selectedTask) return;
       const today = new Date().toISOString().split('T')[0];
@@ -136,11 +156,19 @@ export default function FlowStatePage() {
     setStatus('setup')
     setSelectedTask(null)
     fetchActiveTasks() // Refresh list to hide completed tasks
+    
+    // Clear URL parameters so it doesn't auto-load the old task on reset
+    if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', '/flow');
+    }
   }
 
   const mins = Math.floor(timeLeft / 60)
   const secs = timeLeft % 60
   const progressPercent = ((duration * 60 - timeLeft) / (duration * 60)) * 100
+
+  // 🎯 NEW: Dynamic duration options that include the custom Chrono Map time
+  const durationOptions = Array.from(new Set([25, 45, 60, 90, duration])).sort((a, b) => a - b);
 
   if (status === 'setup') {
     return (
@@ -170,7 +198,7 @@ export default function FlowStatePage() {
 
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">2. Set Focus Duration</h3>
           <div className="flex gap-3 mb-8 overflow-x-auto pb-2">
-            {[25, 45, 60, 90].map(time => (
+            {durationOptions.map(time => (
               <button 
                 key={time} onClick={() => setDuration(time)}
                 className={cn("flex-1 min-w-[70px] py-3 rounded-xl border transition-all font-bold text-lg", duration === time ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none" : "bg-slate-50 dark:bg-slate-800/50 border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800")}
