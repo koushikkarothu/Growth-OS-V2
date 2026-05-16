@@ -32,65 +32,64 @@ function SortableNode({ block, isActive, isPast, progress, onDelete, onComplete,
     return (
         <div ref={setNodeRef} style={style} className={cn("flex items-start w-full group relative z-10 node-element py-2 transition-opacity duration-500", block.is_completed ? "opacity-60" : "opacity-100")} data-id={block.id}>
             
-            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing w-20 md:w-28 text-right shrink-0 pr-4 md:pr-6 hover:text-indigo-500 transition-colors pt-3">
-                <span className={cn("text-xs md:text-sm font-black block whitespace-nowrap", isActive && !block.is_completed ? "text-indigo-500" : "text-slate-900 dark:text-white")}>{formatTime(block.start_time)}</span>
-                <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{formatTime(block.end_time)}</span>
+            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing w-20 md:w-24 text-right shrink-0 pr-4 md:pr-6 hover:text-indigo-500 transition-colors pt-3">
+                <span className={cn("text-xs md:text-sm font-bold block whitespace-nowrap", isActive && !block.is_completed ? "text-indigo-600 dark:text-indigo-400" : "text-slate-900 dark:text-white")}>{formatTime(block.start_time)}</span>
+                <span className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">{formatTime(block.end_time)}</span>
             </div>
 
-            <div className="w-10 md:w-14 shrink-0 flex justify-center pt-1">
+            <div className="w-10 md:w-12 shrink-0 flex justify-center pt-1.5">
                 <motion.div 
-                    animate={isActive && !block.is_completed ? { scale: [1, 1.15, 1], boxShadow: "0px 0px 25px rgba(99,102,241,0.5)" } : {}} 
+                    animate={isActive && !block.is_completed ? { scale: [1, 1.15, 1], boxShadow: "0px 0px 15px rgba(99,102,241,0.3)" } : {}} 
                     transition={{ repeat: isActive ? Infinity : 0, duration: 2 }}
-                    className={cn("w-10 h-10 md:w-14 md:h-14 rounded-full border-2 md:border-[3px] flex items-center justify-center shadow-lg transition-all", 
-                        block.is_completed ? "bg-emerald-500 border-emerald-500 text-white shadow-emerald-500/20" :
-                        isActive ? "bg-white dark:bg-slate-900 border-indigo-500 text-indigo-500" :
-                        isPast ? "bg-white dark:bg-slate-900 border-red-500/30 text-red-500/40" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400"
+                    className={cn("w-10 h-10 md:w-12 md:h-12 rounded-xl border-2 flex items-center justify-center shadow-sm transition-all", 
+                        block.is_completed ? "bg-emerald-500 border-emerald-500 text-white" :
+                        isActive ? "bg-white dark:bg-slate-900 border-indigo-500 text-indigo-600 dark:text-indigo-400" :
+                        isPast ? "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500"
                     )}
                 >
-                    {block.is_completed ? <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6" /> : getIcon()}
+                    {block.is_completed ? <CheckCircle2 className="w-5 h-5" /> : getIcon()}
                 </motion.div>
             </div>
 
-            <div className="flex-1 pl-4 md:pl-6 pb-2">
-                <div className={cn("p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border transition-all flex flex-col justify-center",
-                    block.is_completed ? "bg-slate-50 dark:bg-slate-800/30 border-emerald-500/30" :
-                    isActive ? "bg-white dark:bg-slate-900 border-indigo-300 dark:border-indigo-700 shadow-2xl shadow-indigo-500/10 ring-1 ring-indigo-500/30" :
-                    "bg-white dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-lg"
+            <div className="flex-1 pl-4 md:pl-6 pb-2 min-w-0">
+                <div className={cn("p-4 md:p-5 rounded-2xl border transition-all flex flex-col justify-center",
+                    block.is_completed ? "bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 grayscale-[20%]" :
+                    isActive ? "bg-white dark:bg-slate-900 border-indigo-300 dark:border-indigo-700 shadow-md ring-1 ring-indigo-500/20" :
+                    "bg-white dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-slate-700 hover:shadow-sm"
                 )}>
                     <div className="flex flex-col xl:flex-row xl:items-center justify-between w-full gap-4">
-                        <div className="flex-1">
-                            <span className={cn("text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md",
-                                block.is_completed ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
-                                block.block_type === 'Deep Work' ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400" :
-                                block.block_type === 'Transit' ? "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400" :
-                                "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"
+                        <div className="flex-1 min-w-0">
+                            <span className={cn("text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md",
+                                block.is_completed ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20" :
+                                block.block_type === 'Deep Work' ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20" :
+                                block.block_type === 'Transit' ? "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-100 dark:border-amber-500/20" :
+                                "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
                             )}>{block.block_type}</span>
                             
-                            {/* 🎯 THE FIX: No Strikethrough, professional color shift */}
-                            <h3 className={cn("text-base md:text-lg font-black leading-tight mt-2.5", 
-                                block.is_completed ? "text-slate-600 dark:text-slate-400" : "text-slate-900 dark:text-white"
+                            <h3 className={cn("text-base md:text-lg font-bold leading-tight mt-2 truncate", 
+                                block.is_completed ? "text-slate-500 dark:text-slate-400" : "text-slate-900 dark:text-white"
                             )}>{block.title}</h3>
                         </div>
                         
-                        <div className="flex gap-2 flex-wrap sm:flex-nowrap shrink-0 border-t xl:border-0 border-slate-100 dark:border-slate-800/50 pt-3 xl:pt-0">
+                        <div className="flex gap-2 flex-wrap sm:flex-nowrap shrink-0 border-t xl:border-0 border-slate-100 dark:border-slate-800 pt-3 xl:pt-0">
                             {!block.is_completed && block.block_type === 'Deep Work' && (
-                                <a href={`/flow?taskId=${block.linked_task_id}&duration=${timeToMinutes(block.end_time) - timeToMinutes(block.start_time)}`} className="p-2.5 md:p-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-600 hover:text-white transition-all flex-1 sm:flex-none flex justify-center items-center group"><Play size={16} className="group-hover:fill-current"/></a>
+                                <a href={`/flow?taskId=${block.linked_task_id}&duration=${timeToMinutes(block.end_time) - timeToMinutes(block.start_time)}`} className="p-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-600 hover:text-white transition-colors flex-1 sm:flex-none flex justify-center items-center group"><Play size={16} className="group-hover:fill-current"/></a>
                             )}
                             {!block.is_completed && (
-                                <button onClick={() => onComplete(block.id, block.linked_task_id || undefined)} className="p-2.5 md:p-3 bg-slate-50 dark:bg-slate-800 text-emerald-600 rounded-xl hover:bg-emerald-500 hover:text-white transition-all flex-1 sm:flex-none flex justify-center items-center"><CheckCircle2 size={16}/></button>
+                                <button onClick={() => onComplete(block.id, block.linked_task_id || undefined)} className="p-2 bg-slate-50 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-colors flex-1 sm:flex-none flex justify-center items-center"><CheckCircle2 size={16}/></button>
                             )}
-                            <button onClick={() => onEdit(block)} className="p-2.5 md:p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:bg-blue-50 hover:text-blue-500 rounded-xl transition-all flex-1 sm:flex-none flex justify-center items-center"><Pencil size={16}/></button>
-                            <button onClick={() => onDelete(block.id)} className="p-2.5 md:p-3 bg-slate-50 dark:bg-slate-800 text-slate-300 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all flex-1 sm:flex-none flex justify-center items-center"><Trash2 size={16}/></button>
+                            <button onClick={() => onEdit(block)} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors flex-1 sm:flex-none flex justify-center items-center"><Pencil size={16}/></button>
+                            <button onClick={() => onDelete(block.id)} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 rounded-lg transition-colors flex-1 sm:flex-none flex justify-center items-center"><Trash2 size={16}/></button>
                         </div>
                     </div>
 
                     {isActive && !block.is_completed && (
-                        <div className="mt-4 pt-4 border-t border-indigo-100 dark:border-indigo-500/20 w-full animate-in slide-in-from-top-2">
-                            <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-2.5">
+                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 w-full animate-in slide-in-from-top-2">
+                            <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-2">
                                 <span className="flex items-center gap-1.5"><Activity size={12} className="animate-pulse"/> ACTIVE FOCUS</span>
                                 <span>{Math.round(progress)}%</span>
                             </div>
-                            <div className="h-2 w-full bg-indigo-100 dark:bg-indigo-900/30 rounded-full overflow-hidden">
+                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                                 <motion.div className="h-full bg-indigo-500" initial={{ width: "0%" }} animate={{ width: `${progress}%` }} transition={{ duration: 1 }} />
                             </div>
                         </div>
@@ -309,25 +308,25 @@ export default function ChronoMap() {
         }
     }
 
-    if (!isMounted) return <div className="h-screen flex items-center justify-center text-indigo-500"><Activity className="animate-pulse" size={48}/></div>
+    if (!isMounted) return <div className="h-[70vh] flex items-center justify-center text-indigo-500"><Activity className="animate-pulse" size={40}/></div>
 
     const currentMins = currentTime.getHours() * 60 + currentTime.getMinutes();
     const liveTimeFormat = formatTime(`${String(currentTime.getHours()).padStart(2,'0')}:${String(currentTime.getMinutes()).padStart(2,'0')}`);
 
     return (
-        <div className="max-w-7xl mx-auto pb-32 animate-in fade-in duration-500 px-4 md:px-8">
-            <header className="mb-8 md:mb-12 mt-4 border-b border-slate-200 dark:border-slate-800 pb-6 md:pb-8 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
+        <div className="w-full pb-32 animate-in fade-in duration-500">
+            <header className="mb-8 md:mb-12 mt-2 border-b border-slate-200 dark:border-slate-800 pb-8 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
                 <div>
-                    <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white flex items-center gap-3 md:gap-4 tracking-tight"><MapIcon className="text-indigo-600 dark:text-indigo-400" size={36} /> Chrono Map</h1>
-                    <p className="text-slate-500 font-bold mt-2 md:mt-3 text-sm tracking-wide uppercase">Kinetic Master Routine</p>
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3 tracking-tight"><MapIcon className="text-indigo-600 dark:text-indigo-400" size={32} /> Chrono Map</h1>
+                    <p className="text-slate-500 font-medium mt-2 text-sm">Kinetic Master Routine.</p>
                 </div>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-10">
                 <div className="lg:col-span-8 relative" ref={containerRef}>
                     
                     {/* The Background Line */}
-                    <div className="absolute top-0 bottom-0 left-[88px] md:left-[140px] w-0.5 bg-slate-200 dark:bg-slate-800 z-0" />
+                    <div className="absolute top-0 bottom-0 left-[90px] md:left-[106px] w-px bg-slate-200 dark:bg-slate-800 z-0" />
 
                     {blocks.length > 0 && indicatorY > 0 && (
                         <motion.div 
@@ -335,23 +334,24 @@ export default function ChronoMap() {
                             animate={{ top: indicatorY }}
                             transition={{ type: "spring", stiffness: 40, damping: 20 }}
                         >
-                            <div className="w-20 md:w-28 text-right pr-4 md:pr-6 shrink-0 bg-slate-50 dark:bg-[#0f172a] py-2">
-                                <span className="text-[10px] md:text-xs font-black tracking-widest text-indigo-500 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-500/50 px-2.5 py-1 rounded shadow-md inline-flex items-center gap-1">
-                                    <Clock size={12} /> {liveTimeFormat}
+                            <div className="w-20 md:w-24 text-right pr-4 md:pr-6 shrink-0 bg-slate-50 dark:bg-slate-950 py-2">
+                                <span className="text-[10px] font-bold tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 px-2 py-1 rounded-md shadow-sm inline-flex items-center gap-1">
+                                    <Clock size={10} /> {liveTimeFormat}
                                 </span>
                             </div>
-                            <div className="w-10 md:w-14 shrink-0 flex justify-center bg-slate-50 dark:bg-[#0f172a] py-2 relative">
-                                <div className="w-3 h-3 bg-indigo-500 rounded-full shadow-[0_0_20px_rgba(99,102,241,1)] animate-ping absolute" />
-                                <div className="w-3 h-3 bg-indigo-500 rounded-full shadow-[0_0_15px_rgba(99,102,241,1)] relative z-10" />
+                            <div className="w-10 md:w-12 shrink-0 flex justify-center bg-slate-50 dark:bg-slate-950 py-2 relative">
+                                <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full shadow-[0_0_15px_rgba(99,102,241,1)] animate-ping absolute" />
+                                <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,1)] relative z-10" />
                             </div>
-                            <div className="flex-1 h-[2px] bg-gradient-to-r from-indigo-500 to-transparent shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
+                            <div className="flex-1 h-px bg-gradient-to-r from-indigo-500 to-transparent shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
                         </motion.div>
                     )}
 
                     {blocks.length === 0 && !isLoading && (
-                        <div className="text-center py-20 md:py-32 opacity-50 relative z-10 bg-white dark:bg-slate-900/20 rounded-[2rem] md:rounded-[3rem] border border-dashed border-slate-300 dark:border-slate-700">
-                            <CircleDot size={40} className="mx-auto mb-4 text-slate-400" />
-                            <p className="font-bold text-slate-500 uppercase tracking-widest text-xs md:text-sm">Timeline Empty. Map your day.</p>
+                        <div className="text-center py-16 md:py-24 relative z-10 bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl shadow-sm">
+                            <CircleDot size={32} className="mx-auto mb-3 text-slate-400" />
+                            <p className="font-bold text-slate-900 dark:text-white mb-1">Timeline Empty</p>
+                            <p className="text-slate-500 text-sm">Map your day and assign missions.</p>
                         </div>
                     )}
 
@@ -373,44 +373,44 @@ export default function ChronoMap() {
                 </div>
 
                 <div className="lg:col-span-4 mt-8 lg:mt-0">
-                    <div className="bg-slate-900 text-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-2xl lg:sticky lg:top-8 border border-slate-800 backdrop-blur-xl">
-                        <h3 className="font-black text-xl mb-2 flex items-center gap-2"><Briefcase className="text-indigo-400"/> Unscheduled Missions</h3>
-                        <p className="text-slate-400 text-xs md:text-sm font-medium mb-6">Click a task to deploy it onto your timeline.</p>
+                    <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-2xl shadow-sm lg:sticky lg:top-8 border border-slate-200 dark:border-slate-800">
+                        <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 flex items-center gap-2"><Briefcase className="text-indigo-500" size={18} /> Unscheduled Missions</h3>
+                        <p className="text-slate-500 text-xs font-medium mb-6">Click a task to deploy it onto your timeline.</p>
                         
-                        <div className="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                             {unscheduledTasks.length === 0 && !isLoading ? (
-                                <p className="text-emerald-400 font-bold text-sm bg-emerald-900/20 p-4 rounded-xl text-center border border-emerald-900/50">All OS Missions Assigned.</p>
+                                <p className="text-slate-500 font-medium text-xs bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl text-center border border-slate-200 dark:border-slate-700">All OS Missions Assigned.</p>
                             ) : (
                                 unscheduledTasks.map(task => (
-                                    <button key={task.id} onClick={() => addMissionToTimeline(task)} className="w-full text-left bg-slate-800 hover:bg-indigo-600 hover:shadow-[0_0_20px_rgba(79,70,229,0.4)] p-4 rounded-2xl transition-all group border border-slate-700 hover:border-indigo-400">
-                                        <h4 className="font-bold text-sm mb-1 line-clamp-2">{task.title}</h4>
-                                        <span className="text-[10px] uppercase tracking-widest text-slate-400 group-hover:text-indigo-200 flex items-center gap-1"><Plus size={12}/> Deploy</span>
+                                    <button key={task.id} onClick={() => addMissionToTimeline(task)} className="w-full text-left bg-slate-50 dark:bg-slate-950 hover:border-indigo-300 dark:hover:border-indigo-700 p-4 rounded-xl transition-colors group border border-slate-200 dark:border-slate-800">
+                                        <h4 className="font-bold text-sm mb-1 text-slate-900 dark:text-white line-clamp-2">{task.title}</h4>
+                                        <span className="text-[10px] uppercase tracking-widest text-slate-400 group-hover:text-indigo-500 flex items-center gap-1"><Plus size={12}/> Deploy</span>
                                     </button>
                                 ))
                             )}
                         </div>
 
-                        <div className="mt-8 pt-8 border-t border-slate-800">
-                            <h3 className="font-black text-sm text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Dumbbell size={16}/> Map Routine</h3>
+                        <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-800">
+                            <h3 className="font-bold text-sm text-slate-900 dark:text-white mb-4 flex items-center gap-2"><Dumbbell size={16} className="text-slate-400" /> Map Routine</h3>
                             {isAdding ? (
                                 <form onSubmit={addManualBlock} className="space-y-3 animate-in fade-in">
-                                    <div className="flex bg-slate-800 p-1 rounded-xl">
-                                        <button type="button" onClick={() => setNewType('Routine')} className={cn("flex-1 py-2 text-xs font-bold rounded-lg transition-all", newType === 'Routine' ? "bg-emerald-600 text-white shadow-md" : "text-slate-400")}>Routine</button>
-                                        <button type="button" onClick={() => setNewType('Transit')} className={cn("flex-1 py-2 text-xs font-bold rounded-lg transition-all", newType === 'Transit' ? "bg-amber-600 text-white shadow-md" : "text-slate-400")}>Transit</button>
+                                    <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
+                                        <button type="button" onClick={() => setNewType('Routine')} className={cn("flex-1 py-2 text-xs font-bold rounded-md transition-colors", newType === 'Routine' ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-300")}>Routine</button>
+                                        <button type="button" onClick={() => setNewType('Transit')} className={cn("flex-1 py-2 text-xs font-bold rounded-md transition-colors", newType === 'Transit' ? "bg-white dark:bg-slate-800 text-amber-600 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-300")}>Transit</button>
                                     </div>
-                                    <input type="text" placeholder="e.g. Strength Training" value={newTitle} onChange={e=>setNewTitle(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-indigo-500" required/>
+                                    <input type="text" placeholder="e.g. Strength Training" value={newTitle} onChange={e=>setNewTitle(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2.5 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500" required/>
                                     <div className="flex gap-2">
-                                        <input type="time" value={newStart} onChange={e=>setNewStart(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-3 text-xs font-bold text-white outline-none focus:border-indigo-500" required/>
-                                        <input type="time" value={newEnd} onChange={e=>setNewEnd(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-3 text-xs font-bold text-white outline-none focus:border-indigo-500" required/>
+                                        <input type="time" value={newStart} onChange={e=>setNewStart(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-indigo-500" required/>
+                                        <input type="time" value={newEnd} onChange={e=>setNewEnd(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-indigo-500" required/>
                                     </div>
-                                    <div className="flex gap-2 pt-2">
-                                        <button type="button" onClick={() => setIsAdding(false)} className="flex-1 text-slate-400 text-xs font-bold hover:text-white transition-colors">Cancel</button>
-                                        <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold transition-colors shadow-md">Add</button>
+                                    <div className="flex gap-2 mt-2">
+                                        <button type="button" onClick={() => setIsAdding(false)} className="flex-1 text-slate-500 bg-slate-100 dark:bg-slate-800 text-sm font-bold hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors py-2.5">Cancel</button>
+                                        <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg text-sm font-bold transition-colors shadow-sm">Add</button>
                                     </div>
                                 </form>
                             ) : (
-                                <button onClick={() => setIsAdding(true)} className="w-full bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-600 py-4 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2 shadow-sm">
-                                    <Plus size={18} /> Add Routine Block
+                                <button onClick={() => setIsAdding(true)} className="w-full bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 py-3 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2 shadow-sm">
+                                    <Plus size={16} /> Add Block
                                 </button>
                             )}
                         </div>
@@ -419,26 +419,26 @@ export default function ChronoMap() {
             </div>
 
             {editingBlock && (
-                <div className="fixed inset-0 z-[500] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-                    <div className="bg-slate-900 border border-slate-700 p-8 rounded-3xl w-full max-w-sm shadow-2xl relative">
-                        <button onClick={() => setEditingBlock(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"><X size={20}/></button>
-                        <h3 className="text-xl font-black text-white mb-6 uppercase tracking-widest flex items-center gap-2"><Pencil size={18}/> Adjust Node</h3>
+                <div className="fixed inset-0 z-[500] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-2xl w-full max-w-sm shadow-2xl relative">
+                        <button onClick={() => setEditingBlock(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><X size={18}/></button>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2"><Pencil size={18} className="text-indigo-500" /> Adjust Node</h3>
                         <form onSubmit={submitEdit} className="space-y-4">
                             <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">Title</label>
-                                <input type="text" value={editingBlock.title} onChange={e => setEditingBlock({...editingBlock, title: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-indigo-500" required />
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Title</label>
+                                <input type="text" value={editingBlock.title} onChange={e => setEditingBlock({...editingBlock, title: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2.5 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500" required />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">Start Time</label>
-                                    <input type="time" value={editingBlock.start_time} onChange={e => setEditingBlock({...editingBlock, start_time: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-indigo-500" required />
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Start</label>
+                                    <input type="time" value={editingBlock.start_time} onChange={e => setEditingBlock({...editingBlock, start_time: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-indigo-500" required />
                                 </div>
                                 <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">End Time</label>
-                                    <input type="time" value={editingBlock.end_time} onChange={e => setEditingBlock({...editingBlock, end_time: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-indigo-500" required />
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">End</label>
+                                    <input type="time" value={editingBlock.end_time} onChange={e => setEditingBlock({...editingBlock, end_time: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-indigo-500" required />
                                 </div>
                             </div>
-                            <button type="submit" className="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl text-sm font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-2"><Save size={18}/> Save Node</button>
+                            <button type="submit" className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center justify-center gap-2"><Save size={16}/> Save Node</button>
                         </form>
                     </div>
                 </div>
