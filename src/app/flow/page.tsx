@@ -11,17 +11,19 @@ export default function FlowStatePage() {
   const [tasks, setTasks] = useState<any[]>([])
   const [selectedTask, setSelectedTask] = useState<any>(null)
   
+  // 🎯 FIX: Absolute Time Engine States
   const [duration, setDuration] = useState(60) 
   const [timeLeft, setTimeLeft] = useState(60 * 60) 
+  const [endTime, setEndTime] = useState<number | null>(null)
   const [isActive, setIsActive] = useState(false)
   const [status, setStatus] = useState<'setup' | 'flowing' | 'success' | 'failed'>('setup')
   
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [sessionDuration, setSessionDuration] = useState(0); 
-  
   const [isStrictMode, setIsStrictMode] = useState(false)
   
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const wakeLockRef = useRef<any>(null) // 🎯 FIX: Hardware Wake Lock
 
   useEffect(() => {
     const initializeFlowState = async () => {
@@ -31,9 +33,7 @@ export default function FlowStatePage() {
             const queryTaskId = params.get('taskId')
             const queryDuration = params.get('duration')
 
-            if (queryDuration && !isNaN(parseInt(queryDuration))) {
-                setDuration(parseInt(queryDuration))
-            }
+            if (queryDuration && !isNaN(parseInt(queryDuration))) setDuration(parseInt(queryDuration))
             if (queryTaskId && fetchedTasks) {
                 const targetTask = fetchedTasks.find(t => String(t.id) === queryTaskId)
                 if (targetTask) setSelectedTask(targetTask)
@@ -43,6 +43,7 @@ export default function FlowStatePage() {
     initializeFlowState()
   }, [])
 
+  // Strict Mode Distraction Detection
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (isStrictMode && document.hidden && status === 'flowing') {
@@ -64,23 +65,49 @@ export default function FlowStatePage() {
     return []
   }
 
+  // 🎯 THE FIX: Absolute Time + Hardware Wake Lock
+  const requestWakeLock = async () => {
+      try {
+          if ('wakeLock' in navigator) {
+              wakeLockRef.current = await (navigator as any).wakeLock.request('screen')
+          }
+      } catch (err) { console.warn("Wake Lock not supported or denied.") }
+  }
+
+  const releaseWakeLock = () => {
+      if (wakeLockRef.current) {
+          wakeLockRef.current.release().then(() => { wakeLockRef.current = null })
+      }
+  }
+
   function startFlow() {
-    if (!selectedTask) { alert("Select a mission first, Commander."); return }
+    if (!selectedTask) { alert("Select a mission first."); return }
+    
+    // Calculate exact future timestamp
+    const targetEndTime = Date.now() + (duration * 60 * 1000)
+    setEndTime(targetEndTime)
     setTimeLeft(duration * 60)
     setSessionDuration(duration) 
     setStatus('flowing')
     setIsActive(true)
 
+    requestWakeLock() // Force screen to stay awake
+
+    // The interval now just updates the UI based on universal time, immune to throttling
     timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) { completeFlow(); return 0; }
-        return prev - 1
-      })
+      const now = Date.now()
+      const remainingSeconds = Math.max(0, Math.ceil((targetEndTime - now) / 1000))
+      setTimeLeft(remainingSeconds)
+
+      if (remainingSeconds <= 0) {
+        completeFlow()
+      }
     }, 1000)
   }
 
   function failFlow(reason: string) {
     if (timerRef.current) clearInterval(timerRef.current)
+    releaseWakeLock()
     setIsActive(false)
     setStatus('failed')
   }
@@ -92,6 +119,7 @@ export default function FlowStatePage() {
 
   async function completeFlow() {
     if (timerRef.current) clearInterval(timerRef.current)
+    releaseWakeLock()
     setIsActive(false)
     setStatus('success')
     awardXP(duration * 2); 
@@ -190,7 +218,7 @@ export default function FlowStatePage() {
                <div>
                  <h4 className="font-black text-slate-900 dark:text-white text-sm mb-1 uppercase tracking-widest">Strict Mode</h4>
                  <p className="text-xs text-slate-500 dark:text-slate-400 font-bold max-w-[250px] leading-relaxed">
-                   Switching tabs or minimizing the window will instantly fail the mission.
+                   Switching tabs or turning off the screen will instantly fail the mission.
                  </p>
                </div>
              </div>
@@ -209,7 +237,6 @@ export default function FlowStatePage() {
             <Play fill="currentColor" size={20} /> Initiate Sequence
           </button>
         </div>
-        <style dangerouslySetInnerHTML={{__html: `.custom-scrollbar::-webkit-scrollbar { height: 4px; width: 4px; } .custom-scrollbar::-webkit-scrollbar-track { background: transparent; } .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(148, 163, 184, 0.3); border-radius: 20px; }`}} />
       </div>
     )
   }

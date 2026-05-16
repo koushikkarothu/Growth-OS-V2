@@ -30,48 +30,50 @@ function SortableNode({ block, isActive, isPast, progress, onDelete, onComplete,
     }
 
     return (
-        <div ref={setNodeRef} style={style} className="flex items-start w-full group relative z-10 node-element py-2" data-id={block.id}>
+        <div ref={setNodeRef} style={style} className={cn("flex items-start w-full group relative z-10 node-element py-2 transition-opacity duration-500", block.is_completed ? "opacity-60" : "opacity-100")} data-id={block.id}>
             
-            {/* 🎯 STRICT COLUMN 1: TIME (Never overlaps) */}
             <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing w-20 md:w-28 text-right shrink-0 pr-4 md:pr-6 hover:text-indigo-500 transition-colors pt-3">
-                <span className={cn("text-xs md:text-sm font-black block whitespace-nowrap", isActive ? "text-indigo-500" : "text-slate-900 dark:text-white")}>{formatTime(block.start_time)}</span>
+                <span className={cn("text-xs md:text-sm font-black block whitespace-nowrap", isActive && !block.is_completed ? "text-indigo-500" : "text-slate-900 dark:text-white")}>{formatTime(block.start_time)}</span>
                 <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{formatTime(block.end_time)}</span>
             </div>
 
-            {/* 🎯 STRICT COLUMN 2: NODE */}
             <div className="w-10 md:w-14 shrink-0 flex justify-center pt-1">
                 <motion.div 
-                    animate={isActive ? { scale: [1, 1.15, 1], boxShadow: "0px 0px 25px rgba(99,102,241,0.5)" } : {}} 
+                    animate={isActive && !block.is_completed ? { scale: [1, 1.15, 1], boxShadow: "0px 0px 25px rgba(99,102,241,0.5)" } : {}} 
                     transition={{ repeat: isActive ? Infinity : 0, duration: 2 }}
-                    className={cn("w-10 h-10 md:w-14 md:h-14 rounded-full border-2 md:border-[3px] flex items-center justify-center shadow-lg bg-white dark:bg-slate-900 z-20 transition-all", 
-                        block.is_completed ? "border-emerald-500 text-emerald-500 shadow-emerald-500/20" :
-                        isActive ? "border-indigo-500 text-indigo-500" :
-                        isPast ? "border-red-500/30 text-red-500/40" : "border-slate-200 dark:border-slate-700 text-slate-400"
+                    className={cn("w-10 h-10 md:w-14 md:h-14 rounded-full border-2 md:border-[3px] flex items-center justify-center shadow-lg transition-all", 
+                        block.is_completed ? "bg-emerald-500 border-emerald-500 text-white shadow-emerald-500/20" :
+                        isActive ? "bg-white dark:bg-slate-900 border-indigo-500 text-indigo-500" :
+                        isPast ? "bg-white dark:bg-slate-900 border-red-500/30 text-red-500/40" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400"
                     )}
                 >
                     {block.is_completed ? <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6" /> : getIcon()}
                 </motion.div>
             </div>
 
-            {/* 🎯 STRICT COLUMN 3: CARD */}
             <div className="flex-1 pl-4 md:pl-6 pb-2">
                 <div className={cn("p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border transition-all flex flex-col justify-center",
-                    block.is_completed ? "bg-emerald-50/30 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-900/30 opacity-70" :
+                    block.is_completed ? "bg-slate-50 dark:bg-slate-800/30 border-emerald-500/30" :
                     isActive ? "bg-white dark:bg-slate-900 border-indigo-300 dark:border-indigo-700 shadow-2xl shadow-indigo-500/10 ring-1 ring-indigo-500/30" :
                     "bg-white dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-lg"
                 )}>
                     <div className="flex flex-col xl:flex-row xl:items-center justify-between w-full gap-4">
                         <div className="flex-1">
                             <span className={cn("text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md",
+                                block.is_completed ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
                                 block.block_type === 'Deep Work' ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400" :
                                 block.block_type === 'Transit' ? "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400" :
                                 "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"
                             )}>{block.block_type}</span>
-                            <h3 className={cn("text-base md:text-lg font-black leading-tight mt-2.5", block.is_completed ? "text-emerald-700 dark:text-emerald-500 line-through" : "text-slate-900 dark:text-white")}>{block.title}</h3>
+                            
+                            {/* 🎯 THE FIX: No Strikethrough, professional color shift */}
+                            <h3 className={cn("text-base md:text-lg font-black leading-tight mt-2.5", 
+                                block.is_completed ? "text-slate-600 dark:text-slate-400" : "text-slate-900 dark:text-white"
+                            )}>{block.title}</h3>
                         </div>
                         
                         <div className="flex gap-2 flex-wrap sm:flex-nowrap shrink-0 border-t xl:border-0 border-slate-100 dark:border-slate-800/50 pt-3 xl:pt-0">
-                            {block.block_type === 'Deep Work' && !block.is_completed && (
+                            {!block.is_completed && block.block_type === 'Deep Work' && (
                                 <a href={`/flow?taskId=${block.linked_task_id}&duration=${timeToMinutes(block.end_time) - timeToMinutes(block.start_time)}`} className="p-2.5 md:p-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-600 hover:text-white transition-all flex-1 sm:flex-none flex justify-center items-center group"><Play size={16} className="group-hover:fill-current"/></a>
                             )}
                             {!block.is_completed && (
@@ -82,7 +84,7 @@ function SortableNode({ block, isActive, isPast, progress, onDelete, onComplete,
                         </div>
                     </div>
 
-                    {isActive && (
+                    {isActive && !block.is_completed && (
                         <div className="mt-4 pt-4 border-t border-indigo-100 dark:border-indigo-500/20 w-full animate-in slide-in-from-top-2">
                             <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-2.5">
                                 <span className="flex items-center gap-1.5"><Activity size={12} className="animate-pulse"/> ACTIVE FOCUS</span>
@@ -142,7 +144,7 @@ export default function ChronoMap() {
                     const startMins = timeToMinutes(blocks[i].start_time);
                     const endMins = timeToMinutes(blocks[i].end_time);
                     const nodeRect = nodes[i].getBoundingClientRect();
-                    const yTop = nodeRect.top - containerRect.top + 28; // Center of dot approx
+                    const yTop = nodeRect.top - containerRect.top + 28; 
                     const yBottom = nodeRect.bottom - containerRect.top;
 
                     if (currentMins >= startMins && currentMins <= endMins) {
@@ -325,29 +327,23 @@ export default function ChronoMap() {
                 <div className="lg:col-span-8 relative" ref={containerRef}>
                     
                     {/* The Background Line */}
-                    <div className="absolute top-0 bottom-0 left-[84px] md:left-[140px] w-0.5 bg-slate-200 dark:bg-slate-800 z-0" />
+                    <div className="absolute top-0 bottom-0 left-[88px] md:left-[140px] w-0.5 bg-slate-200 dark:bg-slate-800 z-0" />
 
-                    {/* 🎯 THE PERFECTED, NO-OVERLAP TRACKER */}
                     {blocks.length > 0 && indicatorY > 0 && (
                         <motion.div 
                             className="absolute left-0 w-full z-30 flex items-center h-0 pointer-events-none"
                             animate={{ top: indicatorY }}
                             transition={{ type: "spring", stiffness: 40, damping: 20 }}
                         >
-                            {/* Fixed Width Time Column to perfectly mask the line behind it */}
                             <div className="w-20 md:w-28 text-right pr-4 md:pr-6 shrink-0 bg-slate-50 dark:bg-[#0f172a] py-2">
                                 <span className="text-[10px] md:text-xs font-black tracking-widest text-indigo-500 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-500/50 px-2.5 py-1 rounded shadow-md inline-flex items-center gap-1">
                                     <Clock size={12} /> {liveTimeFormat}
                                 </span>
                             </div>
-
-                            {/* Node Column */}
                             <div className="w-10 md:w-14 shrink-0 flex justify-center bg-slate-50 dark:bg-[#0f172a] py-2 relative">
                                 <div className="w-3 h-3 bg-indigo-500 rounded-full shadow-[0_0_20px_rgba(99,102,241,1)] animate-ping absolute" />
                                 <div className="w-3 h-3 bg-indigo-500 rounded-full shadow-[0_0_15px_rgba(99,102,241,1)] relative z-10" />
                             </div>
-
-                            {/* Spanning Line - Starts AFTER the node, never crossing text */}
                             <div className="flex-1 h-[2px] bg-gradient-to-r from-indigo-500 to-transparent shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
                         </motion.div>
                     )}
@@ -365,9 +361,9 @@ export default function ChronoMap() {
                                 {blocks.map((block) => {
                                     const startMins = timeToMinutes(block.start_time);
                                     const endMins = timeToMinutes(block.end_time);
-                                    const isActive = currentMins >= startMins && currentMins <= endMins && !block.is_completed;
-                                    const isPast = currentMins > endMins && !block.is_completed;
-                                    const progress = isActive ? ((currentMins - startMins) / (endMins - startMins)) * 100 : 0;
+                                    const isActive = currentMins >= startMins && currentMins <= endMins;
+                                    const isPast = currentMins > endMins;
+                                    const progress = isActive && !block.is_completed ? ((currentMins - startMins) / (endMins - startMins)) * 100 : 0;
 
                                     return <SortableNode key={block.id} block={block} isActive={isActive} isPast={isPast} progress={progress} onDelete={deleteBlock} onComplete={completeBlock} onEdit={setEditingBlock} />
                                 })}
