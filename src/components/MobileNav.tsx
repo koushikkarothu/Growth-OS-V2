@@ -1,124 +1,158 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { 
-  LayoutGrid, Calendar, Trophy, Zap, PlaySquare, Brain,
-  BarChart2, Book, BrainCircuit, Mic, Menu, X, Map, PenTool, Globe, Clock 
+  LayoutDashboard, Map, Play, Target, 
+  Compass, Award, LineChart, 
+  Globe, Video, Database, RotateCcw, 
+  Bot, PenTool, BookOpen, 
+  Menu, X 
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ThemeToggle } from '@/components/ThemeToggle' // <--- Imported
+import { motion, AnimatePresence } from 'framer-motion'
 
-// 1. Define ALL items here
-const allItems = [
-  { name: 'Dashboard', icon: LayoutGrid, href: '/' },
-  { name: 'Chrono Map', icon: Clock, href: '/chrono' },
-  { name: 'Master Plan', icon: Map, href: '/roadmap' },
-  { name: 'Deep Work', icon: Brain, href: '/flow' },
-  { name: 'Planner', icon: Calendar, href: '/planner' },
-  { name: 'Skill Tree', icon: Trophy, href: '/skills' },
-  { name: 'Learning Theater', icon: PlaySquare, href: '/theater' },
-  { name: 'AI Coach', icon: Mic, href: '/coach' },
-  { name: 'Daily Learn', icon: BrainCircuit, href: '/learn' },
-  { name: 'Active Recall', icon: Zap, href: '/recall' },
-  { name: 'Analytics', icon: BarChart2, href: '/analytics' },
-  { name: 'Knowledge Vault', icon: Book, href: '/vault' },
-  { name: 'Global News', icon: Globe, href: '/briefing' },
-  { name: 'IELTS Forge', icon: PenTool, href: '/ielts' }
+// Bottom Dock Quick Access
+const mainLinks = [
+  { name: 'Command', href: '/', icon: LayoutDashboard },
+  { name: 'Chrono', href: '/chrono', icon: Map },
+  { name: 'Flow', href: '/flow', icon: Play },
+  { name: 'Vault', href: '/vault', icon: Database },
 ]
 
-// 2. Pick the "Top 4" for the bottom bar
-const bottomBarItems = allItems.slice(0, 4)
+// The Complete 14-Module Matrix for Mobile
+const navGroups = [
+  {
+    label: "Execution",
+    links: [
+      { name: 'Command Center', href: '/', icon: LayoutDashboard },
+      { name: 'Chrono Map', href: '/chrono', icon: Map },
+      { name: 'Deep Work', href: '/flow', icon: Play },
+      { name: 'Planner', href: '/planner', icon: Target },
+    ]
+  },
+  {
+    label: "Progression",
+    links: [
+      { name: 'Roadmap', href: '/roadmap', icon: Compass },
+      { name: 'Skill Tree', href: '/skills', icon: Award },
+      { name: 'Analytics', href: '/analytics', icon: LineChart },
+    ]
+  },
+  {
+    label: "Intelligence",
+    links: [
+      { name: 'Global Radar', href: '/briefing', icon: Globe },
+      { name: 'Theater Notes', href: '/theater', icon: Video },
+      { name: 'Vault', href: '/vault', icon: Database },
+      { name: 'Active Recall', href: '/recall', icon: RotateCcw },
+    ]
+  },
+  {
+    label: "Training",
+    links: [
+      { name: 'AI Coach', href: '/coach', icon: Bot },
+      { name: 'IELTS Forge', href: '/ielts', icon: PenTool },
+      { name: 'Deep Dive', href: '/learn', icon: BookOpen },
+    ]
+  }
+]
 
 export default function MobileNav() {
   const pathname = usePathname()
-  const [isOpen, setIsOpen] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  // Prevent background scrolling when menu is open
+  useEffect(() => {
+    if (isMenuOpen) document.body.style.overflow = 'hidden'
+    else document.body.style.overflow = 'unset'
+    return () => { document.body.style.overflow = 'unset' }
+  }, [isMenuOpen])
 
   return (
     <>
-      {/* --- THE DRAWER (FULL MENU) --- */}
-      {isOpen && (
-        <div className="fixed inset-0 z-[60] bg-white dark:bg-slate-950 p-6 animate-in slide-in-from-bottom-10 duration-200 flex flex-col">
+      {/* 🎯 FLOATING BOTTOM DOCK */}
+      <div className="lg:hidden fixed bottom-4 left-4 right-4 z-[60]">
+        <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-2xl p-2 flex items-center justify-between">
           
-          {/* DRAWER HEADER */}
-          <div className="flex items-center justify-between mb-8">
-            <span className="text-xl font-bold text-slate-900 dark:text-white">Menu</span>
-            
-            <div className="flex items-center gap-4">
-              {/* --- THEME TOGGLE IS HERE --- */}
-              <ThemeToggle />
-              
-              <button 
-                onClick={() => setIsOpen(false)}
-                className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400"
-              >
-                <X size={20} />
-              </button>
-            </div>
-          </div>
-          
-          {/* DRAWER GRID */}
-          <div className="grid grid-cols-2 gap-3 overflow-y-auto pb-20">
-            {allItems.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link 
-                  key={item.href} 
-                  href={item.href}
-                  onClick={() => setIsOpen(false)}
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border transition-all",
-                    isActive 
-                      ? "bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400" 
-                      : "bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400"
-                  )}
-                >
-                  <item.icon size={24} />
-                  <span className="text-xs font-bold">{item.name}</span>
-                </Link>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* --- THE BOTTOM BAR --- */}
-      <div className="fixed bottom-0 left-0 w-full bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 z-50 md:hidden pb-safe">
-        <div className="flex justify-around items-center h-16">
-          {/* Render Top 4 Items */}
-          {bottomBarItems.map((item) => {
-            const isActive = pathname === item.href
+          {mainLinks.map((link) => {
+            const isActive = pathname === link.href
+            const Icon = link.icon
             return (
               <Link 
-                key={item.href} 
-                href={item.href}
+                key={link.name} href={link.href} onClick={() => setIsMenuOpen(false)}
                 className={cn(
-                  "p-3 rounded-xl transition-all",
-                  isActive 
-                    ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20" 
-                    : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
+                  "flex flex-col items-center justify-center w-[18vw] max-w-[70px] h-14 rounded-[1.2rem] transition-all relative",
+                  isActive ? "text-indigo-400" : "text-slate-500 hover:text-slate-300"
                 )}
               >
-                <item.icon size={24} />
+                {isActive && <motion.div layoutId="mobile-bubble" className="absolute inset-0 bg-indigo-500/20 rounded-[1.2rem] border border-indigo-500/30" />}
+                <Icon size={20} className="relative z-10 mb-1" />
+                <span className="text-[9px] font-black uppercase tracking-widest relative z-10">{link.name}</span>
               </Link>
             )
           })}
 
-          {/* Render "Menu" Button (Triggers Drawer) */}
+          {/* MORE MENU BUTTON */}
           <button 
-            onClick={() => setIsOpen(true)}
-            className={cn(
-              "p-3 rounded-xl transition-all",
-              isOpen 
-                ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20" 
-                : "text-slate-400 dark:text-slate-500"
-            )}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="flex flex-col items-center justify-center w-[18vw] max-w-[70px] h-14 rounded-[1.2rem] text-slate-500 hover:text-slate-300 transition-all bg-white/5"
           >
-            <Menu size={24} />
+            {isMenuOpen ? <X size={20} className="mb-1" /> : <Menu size={20} className="mb-1" />}
+            <span className="text-[9px] font-black uppercase tracking-widest">Menu</span>
           </button>
         </div>
       </div>
+
+      {/* 🎯 FULL SCREEN GLASS MATRIX (Mobile Only) */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <>
+            {/* Backdrop Blur Overlay */}
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="lg:hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[50]"
+              onClick={() => setIsMenuOpen(false)}
+            />
+            
+            {/* The Menu Sheet */}
+            <motion.div 
+              initial={{ opacity: 0, y: "100%" }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="lg:hidden fixed bottom-24 left-4 right-4 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-2xl z-[55] overflow-hidden max-h-[70vh] flex flex-col"
+            >
+              <div className="overflow-y-auto p-6 space-y-8 custom-scrollbar">
+                {navGroups.map((group, idx) => (
+                  <div key={idx}>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 pl-2 border-l-2 border-indigo-500/30">{group.label}</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {group.links.map((link) => {
+                        const isActive = pathname === link.href
+                        const Icon = link.icon
+                        return (
+                          <Link 
+                            key={link.name} href={link.href} onClick={() => setIsMenuOpen(false)}
+                            className={cn(
+                              "flex items-center gap-3 px-3 py-3 rounded-xl font-bold text-xs transition-all",
+                              isActive ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "bg-slate-800/40 text-slate-300 hover:bg-slate-800 border border-transparent"
+                            )}
+                          >
+                            <Icon size={16} className={isActive ? "text-indigo-400" : "text-slate-500"} />
+                            <span className="truncate">{link.name}</span>
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   )
 }

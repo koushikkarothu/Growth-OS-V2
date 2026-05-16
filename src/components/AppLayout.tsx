@@ -1,31 +1,20 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
-import Sidebar from '@/components/Sidebar'
-import MobileNav from '@/components/MobileNav'
+import Sidebar from './Sidebar'
+import MobileNav from './MobileNav'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const isAuthPage = pathname === '/login' || pathname === '/signup'
-
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Desktop Sidebar (Hidden on Mobile) */}
-      {!isAuthPage && (
-        <div className="hidden md:block">
-          <Sidebar />
-        </div>
-      )}
-
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden relative">
-        <div className="p-4 md:p-8 lg:p-10 max-w-screen-2xl mx-auto">
-           {children}
+    <div className="min-h-screen bg-slate-950 flex selection:bg-indigo-500/30">
+      <Sidebar />
+      {/* 🎯 THE FIX: lg:pl-[280px] perfectly offsets the new 280px Desktop Sidebar */}
+      <main className="flex-1 lg:pl-[280px] pb-28 lg:pb-12 pt-4 lg:pt-10 min-h-screen relative overflow-x-hidden">
+        {/* 🎯 THE FIX: Expanded to 1920px for edge-to-edge fluid distribution */}
+        <div className="max-w-[1920px] w-full mx-auto px-4 sm:px-8 lg:px-12 h-full">
+          {children}
         </div>
       </main>
-
-      {/* Mobile Nav (Hidden on Desktop) */}
-      {!isAuthPage && <MobileNav />}
+      <MobileNav />
     </div>
   )
 }

@@ -1,82 +1,122 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
+import { usePathname } from 'next/navigation'
 import { 
-  LayoutGrid, Calendar, Trophy, Zap, Brain,
-  BarChart2, Book, BrainCircuit, Settings, LogOut, Mic, PlaySquare, PenTool, Globe, Clock
+  LayoutDashboard, Map, Play, Target, 
+  Compass, Award, LineChart, 
+  Globe, Video, Database, RotateCcw, 
+  Bot, PenTool, BookOpen, 
+  Zap, LogOut 
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Map } from 'lucide-react' // Add Map to imports
+import { supabase } from '@/lib/supabaseClient'
+import { useRouter } from 'next/navigation'
 
-const menuItems = [
-  { name: 'Dashboard', icon: LayoutGrid, href: '/' },
-  { name: 'Chrono Map', icon: Clock, href: '/chrono' },
-  { name: 'Master Plan', icon: Map, href: '/roadmap' }, // <--- ADDED HERE
-  { name: 'Deep Work', icon: Brain, href: '/flow' }, // <--- ADD THIS
-  { name: 'Planner', icon: Calendar, href: '/planner' },
-  { name: 'Skill Tree', icon: Trophy, href: '/skills' },
-  { name: 'Learning Theater', icon: PlaySquare, href: '/theater' }, // <--- ADDED HERE
-  { name: 'Active Recall', icon: Zap, href: '/recall' },
-  { name: 'Analytics', icon: BarChart2, href: '/analytics' },
-  { name: 'Knowledge Vault', icon: Book, href: '/vault' },
-  { name: 'Daily Learn', icon: BrainCircuit, href: '/learn' },
-  { name: 'AI Coach', icon: Mic, href: '/coach' },
-  { name: 'Global News', icon: Globe, href: '/briefing' },
-  { name: 'IELTS Forge', icon: PenTool, href: '/ielts' }
+const navGroups = [
+  {
+    label: "Execution",
+    links: [
+      { name: 'Command Center', href: '/', icon: LayoutDashboard },
+      { name: 'Chrono Map', href: '/chrono', icon: Map },
+      { name: 'Deep Work', href: '/flow', icon: Play },
+      { name: 'Strategic Planner', href: '/planner', icon: Target },
+    ]
+  },
+  {
+    label: "Progression",
+    links: [
+      { name: 'Roadmap', href: '/roadmap', icon: Compass },
+      { name: 'Skill Tree', href: '/skills', icon: Award },
+      { name: 'Analytics', href: '/analytics', icon: LineChart },
+    ]
+  },
+  {
+    label: "Intelligence",
+    links: [
+      { name: 'Global Radar', href: '/briefing', icon: Globe },
+      { name: 'Theater Notes', href: '/theater', icon: Video },
+      { name: 'Knowledge Vault', href: '/vault', icon: Database },
+      { name: 'Active Recall', href: '/recall', icon: RotateCcw },
+    ]
+  },
+  {
+    label: "Training",
+    links: [
+      { name: 'AI Coach', href: '/coach', icon: Bot },
+      { name: 'IELTS Forge', href: '/ielts', icon: PenTool },
+      { name: 'Deep Dive', href: '/learn', icon: BookOpen },
+    ]
+  }
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
 
-  async function handleLogout() {
+  const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
   }
 
   return (
-    // "hidden md:flex" -> Hides on mobile, Flex on Desktop
-    // "dark:bg-slate-900" -> Dark mode background
-    <aside className="hidden md:flex w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-screen fixed left-0 top-0 p-6 flex-col z-50">
-      <div className="flex items-center gap-3 mb-12 px-2">
-        <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-600/20">
-          G
+    <aside className="hidden lg:flex flex-col w-[280px] h-screen fixed left-0 top-0 bottom-0 p-5 z-50">
+      <div className="flex-1 flex flex-col bg-slate-900/40 backdrop-blur-2xl border border-white/5 rounded-[2rem] shadow-2xl overflow-hidden">
+        
+        {/* LOGO */}
+        <div className="p-6 pb-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
+              <Zap size={20} className="text-white" fill="currentColor" />
+            </div>
+            <div>
+              <h1 className="text-xl font-black tracking-tight text-white leading-none">Growth<span className="text-indigo-400">OS</span></h1>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1">System v2.0</p>
+            </div>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-none">Growth OS</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">v2.0 Pro</p>
+
+        {/* NAV LINKS */}
+        <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-6 custom-scrollbar">
+          {navGroups.map((group, idx) => (
+            <div key={idx}>
+              <h3 className="px-3 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">{group.label}</h3>
+              <div className="space-y-0.5">
+                {group.links.map((link) => {
+                  const isActive = pathname === link.href
+                  const Icon = link.icon
+                  return (
+                    <Link 
+                      key={link.name} 
+                      href={link.href}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 group",
+                        isActive 
+                          ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 shadow-inner" 
+                          : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 border border-transparent"
+                      )}
+                    >
+                      <Icon size={16} className={cn("transition-transform duration-300", isActive ? "scale-110" : "group-hover:scale-110")} />
+                      <span>{link.name}</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* LOGOUT */}
+        <div className="p-4 border-t border-white/5">
+          <button 
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl font-bold text-sm text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-colors group"
+          >
+            <LogOut size={16} className="group-hover:-translate-x-1 transition-transform" />
+            <span>Disconnect</span>
+          </button>
         </div>
-      </div>
 
-      <nav className="flex-1 space-y-1.5 overflow-y-auto custom-scrollbar"> 
-        {menuItems.map((item) => {
-          const isActive = pathname === item.href
-          return (
-            <Link 
-              key={item.href} 
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 group relative",
-                isActive 
-                  ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400" 
-                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200"
-              )}
-            >
-              <item.icon size={20} className={cn("transition-colors", isActive ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")} />
-              {item.name}
-              {isActive && <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-l-full" />}
-            </Link>
-          )
-        })}
-      </nav>
-
-      <div className="pt-6 border-t border-slate-100 dark:border-slate-800 mt-4 space-y-2">
-        <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-all font-medium text-sm">
-          <LogOut size={18} />
-          <span>Sign Out</span>
-        </button>
       </div>
     </aside>
   )
