@@ -62,19 +62,23 @@ export default function PlannerPage() {
   const currentGoals = goals.filter(g => g.type === activeTab)
 
   return (
-    <div className="max-w-5xl mx-auto pb-20 animate-in fade-in duration-500">
-      <header className="mb-10">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Strategic Planner</h1>
-        <p className="text-slate-500 dark:text-slate-400 font-medium">Align your daily actions with your monthly vision.</p>
+    <div className="w-full pb-24 md:pb-20 animate-in fade-in duration-700">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 md:gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+             <Target className="text-indigo-600 dark:text-indigo-400" size={32} /> Strategic Planner
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm md:text-base">Align your daily actions with your monthly vision.</p>
+        </div>
       </header>
 
-      {/* TABS */}
-      <div className="flex p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-fit mb-8 shadow-sm">
+      {/* TABS - Enterprise Clean */}
+      <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-lg w-fit mb-8 border border-slate-200 dark:border-slate-800">
         <button
           onClick={() => setActiveTab('Weekly')}
           className={cn(
-            "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
-            activeTab === 'Weekly' ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 shadow-sm ring-1 ring-indigo-200 dark:ring-indigo-900" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            "px-6 py-2 rounded-md text-sm font-semibold transition-all flex items-center gap-2",
+            activeTab === 'Weekly' ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200 dark:border-slate-700" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
           )}
         >
           <Calendar size={16} /> Weekly Focus
@@ -82,8 +86,8 @@ export default function PlannerPage() {
         <button
           onClick={() => setActiveTab('Monthly')}
           className={cn(
-            "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
-            activeTab === 'Monthly' ? "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 shadow-sm ring-1 ring-purple-200 dark:ring-purple-900" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            "px-6 py-2 rounded-md text-sm font-semibold transition-all flex items-center gap-2",
+            activeTab === 'Monthly' ? "bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm border border-slate-200 dark:border-slate-700" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
           )}
         >
           <Target size={16} /> Monthly Vision
@@ -91,83 +95,88 @@ export default function PlannerPage() {
       </div>
 
       {/* INPUT CARD */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 mb-10 shadow-sm">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 mb-10 shadow-sm">
         <form onSubmit={addGoal} className="flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-1 space-y-2 w-full">
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">New {activeTab} Goal</label>
+            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block">New {activeTab} Goal</label>
             <input 
               type="text" 
               placeholder={`What is your main focus for this ${activeTab === 'Weekly' ? 'week' : 'month'}?`}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-900/30 outline-none transition-all font-medium"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-indigo-500 transition-colors"
               value={newGoal}
               onChange={(e) => setNewGoal(e.target.value)}
             />
           </div>
           <div className="w-full md:w-48 space-y-2">
-             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Deadline</label>
+             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block">Deadline</label>
              <input 
               type="date" 
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-700 dark:text-slate-300 focus:border-indigo-500 outline-none transition-all font-medium"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 transition-colors"
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
             />
           </div>
           <button 
-            type="submit"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-xl transition-all h-[52px] w-full md:w-[52px] flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none active:scale-95"
+            type="submit" disabled={!newGoal}
+            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-bold transition-colors h-[42px] w-full md:w-auto flex items-center justify-center gap-2 shadow-sm"
           >
-            <Plus size={24} />
+            <Plus size={18} /> <span className="md:hidden">Add Goal</span>
           </button>
         </form>
       </div>
 
       {/* GOALS LIST */}
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {currentGoals.length === 0 && !loading && (
-          <div className="text-center py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/50">
-            <Target className="mx-auto text-slate-300 dark:text-slate-600 mb-3" size={48} />
-            <p className="text-slate-500 dark:text-slate-400 font-medium">No active goals. Set your vision.</p>
+          <div className="xl:col-span-2 text-center py-16 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 shadow-sm">
+            <Target className="mx-auto text-slate-400 mb-3" size={32} />
+            <p className="text-slate-900 dark:text-white font-bold text-lg mb-1">No active goals.</p>
+            <p className="text-slate-500 text-sm">Set your vision for the {activeTab.toLowerCase()}.</p>
           </div>
         )}
 
         {currentGoals.map(goal => (
-          <div key={goal.id} className="group flex items-center justify-between bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900 transition-all">
-            <div className="flex items-center gap-5">
+          <div key={goal.id} className={cn(
+            "group flex flex-col sm:flex-row sm:items-center justify-between bg-white dark:bg-slate-900 p-5 rounded-xl border transition-all duration-300 gap-4 shadow-sm",
+            goal.status === 'Done' ? "border-slate-200 dark:border-slate-800 opacity-60 grayscale-[20%]" : "border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md"
+          )}>
+            <div className="flex items-start sm:items-center gap-4">
               <button 
                 onClick={() => toggleGoal(goal)}
                 className={cn(
-                  "transition-all transform active:scale-90",
-                  goal.status === 'Done' ? "text-emerald-500" : "text-slate-300 dark:text-slate-600 hover:text-indigo-500"
+                  "shrink-0 mt-0.5 sm:mt-0 transition-colors w-6 h-6 rounded-md flex items-center justify-center border-2",
+                  goal.status === 'Done' ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-300 dark:border-slate-600 text-transparent hover:border-indigo-500"
                 )}
               >
-                {goal.status === 'Done' ? <CheckCircle2 size={26} /> : <Circle size={26} strokeWidth={2} />}
+                {goal.status === 'Done' && <CheckCircle2 size={14} />}
               </button>
               
               <div>
                 <h3 className={cn(
-                  "text-lg font-bold transition-all",
-                  goal.status === 'Done' ? "text-slate-400 dark:text-slate-500 line-through decoration-slate-300 dark:decoration-slate-700" : "text-slate-800 dark:text-slate-200"
+                  "text-base font-bold transition-colors leading-snug",
+                  goal.status === 'Done' ? "text-slate-500 dark:text-slate-400" : "text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
                 )}>
                   {goal.title}
                 </h3>
                 {goal.deadline && (
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 dark:text-slate-500 mt-1">
-                    <Clock size={12} /> 
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1.5">
+                    <Clock size={14} /> 
                     <span>Due {goal.deadline}</span>
                   </div>
                 )}
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-end sm:justify-start gap-4 shrink-0 border-t sm:border-0 border-slate-100 dark:border-slate-800 pt-3 sm:pt-0">
                {goal.status === 'Done' && (
-                <span className="text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-full font-bold uppercase tracking-wider border border-emerald-100 dark:border-emerald-900/50">
+                <span className="text-[10px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-md font-bold uppercase tracking-widest border border-emerald-200 dark:border-emerald-500/20">
                   Completed
                 </span>
               )}
               <button 
                 onClick={() => deleteGoal(goal.id)}
-                className="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 dark:text-slate-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
+                className="p-1.5 rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors"
+                title="Delete Goal"
               >
                 <Trash2 size={16} />
               </button>

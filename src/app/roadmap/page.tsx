@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import confetti from 'canvas-confetti'
 import { 
-  Map, Plus, Clock, CheckCircle2, AlertCircle, PlayCircle, 
-  MoreVertical, Calendar as CalIcon, ChevronDown, ChevronUp, Trash2,
-  AlertTriangle, ArrowRight
+  Plus, Clock, CheckCircle2, AlertCircle, PlayCircle, 
+  MoreVertical, ChevronDown, ChevronUp, Trash2,
+  AlertTriangle, ArrowRight, Compass, Target
 } from 'lucide-react'
-import { format, differenceInDays, parseISO, isAfter, isBefore } from 'date-fns'
+import { format, differenceInDays, parseISO, isAfter } from 'date-fns'
 import { cn } from '@/lib/utils'
 
 interface Subtask {
@@ -26,7 +26,6 @@ export default function RoadmapPage() {
   const [loading, setLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
   
-  // New Milestone Form
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [targetDate, setTargetDate] = useState('')
@@ -45,7 +44,6 @@ export default function RoadmapPage() {
       .order('target_date', { ascending: true })
     
     if (data) {
-        // Sort subtasks by end_date so urgency is visible
         const sortedData = data.map((m: any) => ({
             ...m,
             subtasks: m.subtasks.sort((a: any, b: any) => new Date(a.end_date || '9999-12-31').getTime() - new Date(b.end_date || '9999-12-31').getTime())
@@ -70,59 +68,65 @@ export default function RoadmapPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto pb-32 animate-in fade-in duration-700 px-2 md:px-0">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 md:mb-16">
+    <div className="w-full pb-32 animate-in fade-in duration-700">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
         <div>
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-            <Map className="text-indigo-600 dark:text-indigo-400" size={36} /> Master Plan
+          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+            <Compass className="text-indigo-600 dark:text-indigo-400" size={32} /> Master Roadmap
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium mt-2 text-base md:text-lg">Strategic Timeline & Critical Paths</p>
+          <p className="text-slate-500 dark:text-slate-400 font-medium mt-2 text-sm md:text-base">Strategic Timeline & Critical Paths.</p>
         </div>
         <button 
           onClick={() => setIsAdding(!isAdding)}
-          className="bg-slate-900 dark:bg-white hover:bg-indigo-600 dark:hover:bg-indigo-400 text-white dark:text-slate-900 px-8 py-3 rounded-2xl font-bold transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center justify-center gap-2 active:scale-95 w-full md:w-auto"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-bold transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 w-full md:w-auto"
         >
-          <Plus size={20} /> Plot Objective
+          <Plus size={18} /> Plot Objective
         </button>
       </header>
 
       {/* ADD FORM */}
       {isAdding && (
-        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl mb-12 animate-in slide-in-from-top-6">
-          <h3 className="font-bold text-xl text-slate-900 dark:text-white mb-6">Initialize New Vector</h3>
+        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl mb-12 animate-in slide-in-from-top-4">
+          <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-6 flex items-center gap-2"><Target size={18} className="text-indigo-500"/> Initialize New Vector</h3>
           <form onSubmit={addMilestone}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mission Title</label>
-                    <input type="text" placeholder="e.g. Master's in Germany" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-5 py-4 text-sm font-semibold outline-none focus:border-indigo-500 transition-all dark:text-white" required />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block">Mission Title</label>
+                    <input type="text" placeholder="e.g. Master's in Germany" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2.5 text-sm font-semibold outline-none focus:border-indigo-500 transition-colors dark:text-white" required />
                 </div>
-                <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Deadline</label>
-                    <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-5 py-4 text-sm font-semibold outline-none focus:border-indigo-500 transition-all dark:text-white" required />
+                <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block">Deadline</label>
+                    <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2.5 text-sm font-semibold outline-none focus:border-indigo-500 transition-colors dark:text-white" required />
                 </div>
-                <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sector</label>
-                    <input type="text" placeholder="e.g. Academics, Finance" value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-5 py-4 text-sm font-semibold outline-none focus:border-indigo-500 transition-all dark:text-white" required />
+                <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block">Sector / Category</label>
+                    <input type="text" placeholder="e.g. Academics, Finance" value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2.5 text-sm font-semibold outline-none focus:border-indigo-500 transition-colors dark:text-white" required />
                 </div>
-                <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Briefing</label>
-                    <input type="text" placeholder="Key details..." value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-5 py-4 text-sm font-semibold outline-none focus:border-indigo-500 transition-all dark:text-white" />
+                <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block">Briefing</label>
+                    <input type="text" placeholder="Key details..." value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2.5 text-sm font-semibold outline-none focus:border-indigo-500 transition-colors dark:text-white" />
                 </div>
             </div>
-            <div className="flex flex-col md:flex-row justify-end gap-3 md:gap-4">
-                <button type="button" onClick={() => setIsAdding(false)} className="px-6 py-3 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all">Cancel</button>
-                <button type="submit" className="px-8 py-3 text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-lg hover:shadow-indigo-500/25 transition-all">Confirm Coordinates</button>
+            <div className="flex flex-col md:flex-row justify-end gap-3">
+                <button type="button" onClick={() => setIsAdding(false)} className="px-6 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
+                <button type="submit" className="px-8 py-2.5 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm transition-colors">Confirm Coordinates</button>
             </div>
           </form>
         </div>
       )}
 
       {/* THE TIMELINE */}
-      <div className="relative pl-1 md:pl-8">
-        {/* Dynamic Timeline Line: Positioned perfectly for both Mobile and Desktop */}
-        <div className="absolute left-[25px] md:left-[71px] top-4 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800" />
+      <div className="relative pl-2 md:pl-8">
+        <div className="absolute left-[24px] md:left-[51px] top-4 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800" />
 
-        <div className="space-y-8 md:space-y-12">
+        <div className="space-y-8 md:space-y-10">
+          {milestones.length === 0 && !loading && (
+             <div className="ml-12 md:ml-24 py-16 text-center border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 shadow-sm">
+                <Compass className="mx-auto text-slate-400 mb-3" size={32} />
+                <p className="text-slate-900 dark:text-white font-bold text-lg mb-1">No plotted milestones.</p>
+                <p className="text-slate-500 text-sm">Initialize a new vector to build your roadmap.</p>
+             </div>
+          )}
           {milestones.map((m) => (
              <MilestoneCard key={m.id} milestone={m} onRefresh={fetchMilestones} />
           ))}
@@ -136,24 +140,20 @@ function MilestoneCard({ milestone, onRefresh }: { milestone: Milestone, onRefre
   const [isExpanded, setIsExpanded] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   
-  // Subtask Form
   const [stTitle, setStTitle] = useState('')
   const [stStart, setStStart] = useState('')
   const [stEnd, setStEnd] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
 
-  // LOGIC: Progress & Status
   const totalSub = milestone.subtasks?.length || 0
   const completedSub = milestone.subtasks?.filter(s => s.is_completed).length || 0
   const progress = totalSub === 0 ? 0 : Math.round((completedSub / totalSub) * 100)
   
-  // LOGIC: Dates
   const daysLeft = differenceInDays(parseISO(milestone.target_date), new Date())
   const isOverdue = daysLeft < 0 && milestone.status !== 'completed'
   const isFullyComplete = progress === 100 && totalSub > 0
 
-  // 🎨 DYNAMIC VISUALS
-  let statusColor = "slate" // Default
+  let statusColor = "slate"
   let StatusIcon = Clock
   let statusLabel = `${daysLeft} Days Remaining`
 
@@ -171,61 +171,29 @@ function MilestoneCard({ milestone, onRefresh }: { milestone: Milestone, onRefre
       statusLabel = `Overdue by ${Math.abs(daysLeft)} Days`
   }
 
-  // --- ACTIONS ---
-  const triggerConfetti = () => {
-    confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#059669'] })
-  }
+  const triggerConfetti = () => confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#059669'] })
 
   async function addSubtask(e: React.FormEvent) {
     e.preventDefault()
     setErrorMsg('')
-
-    // 🔒 VALIDATION: Subtask cannot end after Milestone
-    if (isAfter(parseISO(stEnd), parseISO(milestone.target_date))) {
-        setErrorMsg(`Subtask cannot end after milestone deadline (${milestone.target_date})`)
-        return
-    }
-    // 🔒 VALIDATION: Start cannot be after End
-    if (stStart && isAfter(parseISO(stStart), parseISO(stEnd))) {
-        setErrorMsg("Start date cannot be after end date")
-        return
-    }
+    if (isAfter(parseISO(stEnd), parseISO(milestone.target_date))) { setErrorMsg(`Subtask cannot end after milestone deadline (${milestone.target_date})`); return }
+    if (stStart && isAfter(parseISO(stStart), parseISO(stEnd))) { setErrorMsg("Start date cannot be after end date"); return }
 
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('roadmap_subtasks').insert([{ 
-        roadmap_id: milestone.id, 
-        user_id: user?.id, 
-        title: stTitle,
-        start_date: stStart || null, // Allow empty start date
-        end_date: stEnd 
-    }])
+    await supabase.from('roadmap_subtasks').insert([{ roadmap_id: milestone.id, user_id: user?.id, title: stTitle, start_date: stStart || null, end_date: stEnd }])
     
-    // Auto-Reopen if adding to a completed task
-    if (milestone.status === 'completed') {
-        await supabase.from('roadmap').update({ status: 'active' }).eq('id', milestone.id)
-    }
-
-    setStTitle(''); setStStart(''); setStEnd('')
-    onRefresh()
-    if(!isExpanded) setIsExpanded(true)
+    if (milestone.status === 'completed') await supabase.from('roadmap').update({ status: 'active' }).eq('id', milestone.id)
+    setStTitle(''); setStStart(''); setStEnd(''); onRefresh(); if(!isExpanded) setIsExpanded(true)
   }
 
   async function toggleSubtask(sub: Subtask) {
     const newVal = !sub.is_completed
     await supabase.from('roadmap_subtasks').update({ is_completed: newVal }).eq('id', sub.id)
     
-    // 🤖 AUTO-COMPLETION LOGIC
-    if (newVal) { // If checking OFF
-       // Check if this was the last one
-       const newCount = completedSub + 1
-       if (newCount === totalSub) {
-           await supabase.from('roadmap').update({ status: 'completed' }).eq('id', milestone.id)
-           triggerConfetti()
-       }
-    } else { // If unchecking
-       if (milestone.status === 'completed') {
-           await supabase.from('roadmap').update({ status: 'active' }).eq('id', milestone.id)
-       }
+    if (newVal) { 
+       if (completedSub + 1 === totalSub) { await supabase.from('roadmap').update({ status: 'completed' }).eq('id', milestone.id); triggerConfetti() }
+    } else { 
+       if (milestone.status === 'completed') await supabase.from('roadmap').update({ status: 'active' }).eq('id', milestone.id)
     }
     onRefresh()
   }
@@ -233,8 +201,7 @@ function MilestoneCard({ milestone, onRefresh }: { milestone: Milestone, onRefre
   async function updateStatus(status: string) {
     await supabase.from('roadmap').update({ status }).eq('id', milestone.id)
     if (status === 'completed') triggerConfetti()
-    setMenuOpen(false)
-    onRefresh()
+    setMenuOpen(false); onRefresh()
   }
 
   async function deleteMilestone() {
@@ -244,179 +211,145 @@ function MilestoneCard({ milestone, onRefresh }: { milestone: Milestone, onRefre
   }
 
   async function deleteSubtask(id: number) {
-    await supabase.from('roadmap_subtasks').delete().eq('id', id)
-    onRefresh()
+    await supabase.from('roadmap_subtasks').delete().eq('id', id); onRefresh()
   }
 
-  // Helper to get border color class
   const getBorderColor = () => {
-      if (statusColor === 'indigo') return "border-indigo-500 shadow-[0_0_30px_rgba(99,102,241,0.15)]"
-      if (statusColor === 'emerald') return "border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.15)] bg-emerald-50/10"
-      if (statusColor === 'red') return "border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.15)]"
+      if (statusColor === 'indigo') return "border-indigo-300 dark:border-indigo-700 shadow-sm"
+      if (statusColor === 'emerald') return "border-emerald-200 dark:border-emerald-900/50 shadow-sm"
+      if (statusColor === 'red') return "border-red-300 dark:border-red-900/50 shadow-sm"
       return "border-slate-200 dark:border-slate-800"
   }
 
   return (
-    <div className="relative flex items-start group">
+    <div className={cn("relative flex items-start group transition-all duration-500", milestone.status === 'completed' ? "opacity-70 grayscale-[20%]" : "opacity-100")}>
       
-      {/* MOBILE-ADAPTIVE ICON NODE */}
+      {/* NODE */}
       <div className={cn(
-        "absolute left-0 mt-6 md:mt-8 w-12 h-12 md:w-20 md:h-20 rounded-2xl md:rounded-3xl flex items-center justify-center border-[4px] md:border-[6px] border-slate-50 dark:border-slate-950 z-10 transition-all duration-300 shadow-lg",
+        "absolute left-0 mt-6 md:mt-7 w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center border-4 border-slate-50 dark:border-slate-950 z-10 transition-all duration-300 shadow-sm",
         statusColor === 'indigo' ? "bg-indigo-600 text-white" : 
         statusColor === 'emerald' ? "bg-emerald-500 text-white" :
         statusColor === 'red' ? "bg-red-500 text-white" : "bg-white dark:bg-slate-800 text-slate-400"
       )}>
-        <StatusIcon className="w-5 h-5 md:w-8 md:h-8" />
+        <StatusIcon className="w-5 h-5 md:w-6 md:h-6" />
       </div>
 
-      {/* CARD: Adjusted margins to fit nicely on mobile */}
+      {/* CARD */}
       <div className={cn(
-        "ml-16 md:ml-28 w-full bg-white dark:bg-slate-900 rounded-3xl md:rounded-[2.5rem] border-2 transition-all duration-500 relative overflow-hidden shadow-sm hover:shadow-xl",
+        "ml-14 md:ml-20 w-full bg-white dark:bg-slate-900 rounded-2xl border transition-all duration-500 relative overflow-hidden hover:shadow-md",
         getBorderColor()
       )}>
         
-        {/* Header Section */}
-        <div className="p-5 md:p-8 pb-4">
-            <div className="flex items-start justify-between gap-3 mb-4">
+        {/* HEADER */}
+        <div className="p-5 md:p-6 pb-4">
+            <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{milestone.category}</span>
-                        <div className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider", 
-                            statusColor === 'red' ? "bg-red-100 text-red-600" : 
-                            statusColor === 'emerald' ? "bg-emerald-100 text-emerald-600" : 
-                            statusColor === 'indigo' ? "bg-indigo-100 text-indigo-600" : "bg-slate-100 text-slate-500"
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">{milestone.category}</span>
+                        <div className={cn("px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider", 
+                            statusColor === 'red' ? "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400" : 
+                            statusColor === 'emerald' ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : 
+                            statusColor === 'indigo' ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" : "bg-slate-100 dark:bg-slate-800 text-slate-500"
                         )}>
                             {statusLabel}
                         </div>
                     </div>
-                    {/* Allow the title to naturally wrap on small screens */}
-                    <h3 className={cn("text-xl md:text-2xl font-black transition-colors leading-tight", statusColor === 'emerald' ? "text-emerald-700 dark:text-emerald-400" : "text-slate-900 dark:text-white")}>
+                    <h3 className={cn("text-lg md:text-xl font-bold transition-colors leading-tight", statusColor === 'emerald' ? "text-slate-500 dark:text-slate-400" : "text-slate-900 dark:text-white")}>
                         {milestone.title}
                     </h3>
-                    {milestone.description && <p className="text-sm md:text-base text-slate-500 dark:text-slate-400 font-medium mt-2 leading-relaxed">{milestone.description}</p>}
+                    {milestone.description && <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1.5 leading-relaxed">{milestone.description}</p>}
                 </div>
                 
-                {/* Options Menu (Shrink-0 prevents it from getting squished by a long title) */}
                 <div className="relative shrink-0">
-                    <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><MoreVertical size={20} className="text-slate-400" /></button>
+                    <button onClick={() => setMenuOpen(!menuOpen)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"><MoreVertical size={18} className="text-slate-400" /></button>
                     {menuOpen && (
-                        <div className="absolute right-0 top-10 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl z-20 py-2 animate-in zoom-in-95">
-                            {!isFullyComplete && milestone.status !== 'active' && 
-                                <button onClick={() => updateStatus('active')} className="w-full text-left px-5 py-3 text-xs font-bold text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-700">Set Active</button>
-                            }
-                            {milestone.status !== 'completed' && 
-                                <button onClick={() => updateStatus('completed')} className="w-full text-left px-5 py-3 text-xs font-bold text-emerald-600 hover:bg-slate-50 dark:hover:bg-slate-700">Mark Complete</button>
-                            }
-                            <button onClick={() => updateStatus('pending')} className="w-full text-left px-5 py-3 text-xs font-bold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700">Mark Pending</button>
-                            <div className="h-px bg-slate-100 dark:bg-slate-700 my-2" />
-                            <button onClick={deleteMilestone} className="w-full text-left px-5 py-3 text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">Delete Mission</button>
+                        <div className="absolute right-0 top-8 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 py-1.5 animate-in zoom-in-95">
+                            {!isFullyComplete && milestone.status !== 'active' && <button onClick={() => updateStatus('active')} className="w-full text-left px-4 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-700">Set Active</button>}
+                            {milestone.status !== 'completed' && <button onClick={() => updateStatus('completed')} className="w-full text-left px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700">Mark Complete</button>}
+                            <button onClick={() => updateStatus('pending')} className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">Mark Pending</button>
+                            <div className="h-px bg-slate-100 dark:bg-slate-700 my-1" />
+                            <button onClick={deleteMilestone} className="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">Delete Mission</button>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Progress Bar */}
-            <div className="mt-6">
-                <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+            <div className="mt-5">
+                <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                     <span>Execution Status</span>
                     <span>{progress}%</span>
                 </div>
-                <div className="h-2 md:h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div 
-                        className={cn("h-full transition-all duration-1000 ease-out rounded-full", statusColor === 'emerald' ? "bg-emerald-500" : "bg-indigo-600")} 
-                        style={{ width: `${progress}%` }} 
-                    />
+                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className={cn("h-full transition-all duration-1000 ease-out rounded-full", statusColor === 'emerald' ? "bg-emerald-500" : "bg-indigo-500")} style={{ width: `${progress}%` }} />
                 </div>
             </div>
         </div>
 
         {/* EXPANDABLE AREA */}
-        <div className="bg-slate-50 dark:bg-black/20 border-t border-slate-100 dark:border-slate-800/50">
-            <button 
-                onClick={() => setIsExpanded(!isExpanded)} 
-                className="w-full flex items-center justify-between p-4 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors"
-            >
+        <div className="bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800">
+            <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex items-center justify-between p-3.5 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                 <div className="flex items-center gap-3">
-                   <div className={cn("text-xs font-bold px-3 py-1 rounded-lg uppercase tracking-wider", isFullyComplete ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300")}>
+                   <div className={cn("text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider border", isFullyComplete ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20" : "bg-white dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700")}>
                       {completedSub} / {totalSub} Steps
                    </div>
-                   {errorMsg && <span className="text-xs text-red-500 font-bold flex items-center gap-1"><AlertTriangle size={12} /> <span className="hidden md:inline">{errorMsg}</span></span>}
+                   {errorMsg && <span className="text-[10px] text-red-600 dark:text-red-400 font-bold flex items-center gap-1"><AlertTriangle size={12} /> <span className="hidden md:inline">{errorMsg}</span></span>}
                 </div>
-                {isExpanded ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
+                {isExpanded ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
             </button>
             
             {isExpanded && (
-                <div className="p-4 md:p-6 pt-2 animate-in slide-in-from-top-2">
-                    {/* Subtasks List */}
-                    <div className="space-y-3 mb-6">
+                <div className="p-4 pt-1 animate-in slide-in-from-top-2">
+                    <div className="space-y-2 mb-4">
                         {milestone.subtasks?.map(sub => {
                             const isSubOverdue = sub.end_date ? isAfter(new Date(), parseISO(sub.end_date)) && !sub.is_completed : false
-                            
                             return (
-                                <div key={sub.id} className="flex items-start md:items-center gap-3 md:gap-4 group/sub p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all">
+                                <div key={sub.id} className="flex items-start md:items-center gap-3 group/sub p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm hover:border-indigo-300 dark:hover:border-slate-700 transition-all">
                                     <button 
                                         onClick={() => toggleSubtask(sub)}
-                                        className={cn(
-                                            "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0 mt-0.5 md:mt-0",
-                                            sub.is_completed ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-300 dark:border-slate-600 hover:border-indigo-500"
-                                        )}
+                                        className={cn("w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0 mt-0.5 md:mt-0", sub.is_completed ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-300 dark:border-slate-600 hover:border-indigo-500")}
                                     >
-                                        {sub.is_completed && <CheckCircle2 size={14} />}
+                                        {sub.is_completed && <CheckCircle2 size={12} />}
                                     </button>
                                     
-                                    <div className="flex-1">
-                                       <div className={cn("text-sm font-semibold transition-all leading-tight", sub.is_completed ? "text-emerald-600 dark:text-emerald-400" : "text-slate-700 dark:text-slate-200")}>
+                                    <div className="flex-1 min-w-0">
+                                       <div className={cn("text-sm font-semibold transition-all leading-tight truncate", sub.is_completed ? "text-slate-500 dark:text-slate-400" : "text-slate-800 dark:text-slate-200")}>
                                            {sub.title}
                                        </div>
                                        {sub.end_date && (
-                                           <div className="flex items-center gap-2 mt-1.5 md:mt-1">
-                                              <span className={cn("text-[10px] font-bold uppercase tracking-wider", isSubOverdue ? "text-red-500" : "text-slate-400")}>
+                                           <div className="flex items-center gap-1.5 mt-1">
+                                              <span className={cn("text-[9px] font-bold uppercase tracking-wider", isSubOverdue ? "text-red-600 dark:text-red-400" : "text-slate-400")}>
                                                 {sub.start_date ? `${format(parseISO(sub.start_date), 'MMM d')} - ` : ''}{format(parseISO(sub.end_date), 'MMM d')}
                                               </span>
-                                              {isSubOverdue && <span className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 rounded">LATE</span>}
+                                              {isSubOverdue && <span className="text-[9px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-800/50">LATE</span>}
                                            </div>
                                        )}
                                     </div>
-
-                                    <button onClick={() => deleteSubtask(sub.id)} className="opacity-100 md:opacity-0 group-hover/sub:opacity-100 text-slate-300 hover:text-red-500 transition-all p-2"><Trash2 size={16} /></button>
+                                    <button onClick={() => deleteSubtask(sub.id)} className="opacity-100 md:opacity-0 group-hover/sub:opacity-100 text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 size={14} /></button>
                                 </div>
                             )
                         })}
                     </div>
 
-                    {/* Add Subtask Form - Reworked for Mobile Grids */}
                     {!isFullyComplete && (
-                        <form onSubmit={addSubtask} className="flex flex-col gap-3 bg-slate-100 dark:bg-slate-800/50 p-4 rounded-2xl">
-                            <input 
-                                type="text" 
-                                placeholder="New Step..." 
-                                value={stTitle} 
-                                onChange={e => setStTitle(e.target.value)} 
-                                className="w-full bg-transparent border-b border-slate-200 dark:border-slate-700 pb-2 text-sm font-medium outline-none text-slate-700 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 transition-colors"
-                            />
-                            
-                            {/* Dates Container - Wraps safely on phone */}
-                            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 mt-2">
-                                <div className="flex items-center gap-2 flex-1 bg-white dark:bg-slate-900 rounded-lg px-3 py-2 border border-slate-200 dark:border-slate-700">
-                                    <span className="text-[10px] font-bold text-slate-400 w-10">START</span>
-                                    <input type="date" value={stStart} onChange={e => setStStart(e.target.value)} className="bg-transparent text-xs font-bold text-slate-600 dark:text-slate-300 outline-none w-full" />
+                        <form onSubmit={addSubtask} className="flex flex-col xl:flex-row gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                            <input type="text" placeholder="New Step..." value={stTitle} onChange={e => setStTitle(e.target.value)} className="w-full xl:flex-[2] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm font-medium outline-none text-slate-900 dark:text-white focus:border-indigo-500 transition-colors" />
+                            <div className="flex flex-1 items-center gap-2">
+                                <div className="flex items-center gap-2 flex-1 bg-slate-50 dark:bg-slate-950 rounded-lg px-3 py-2 border border-slate-200 dark:border-slate-800">
+                                    <span className="text-[9px] font-bold text-slate-400">START</span>
+                                    <input type="date" value={stStart} onChange={e => setStStart(e.target.value)} className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-300 outline-none w-full" />
                                 </div>
-                                
-                                <ArrowRight size={16} className="hidden md:block text-slate-400 shrink-0" />
-                                
-                                <div className="flex items-center gap-2 flex-1 bg-white dark:bg-slate-900 rounded-lg px-3 py-2 border border-slate-200 dark:border-slate-700">
-                                    <span className="text-[10px] font-bold text-slate-400 w-10">DUE</span>
-                                    <input type="date" value={stEnd} onChange={e => setStEnd(e.target.value)} className="bg-transparent text-xs font-bold text-slate-600 dark:text-slate-300 outline-none w-full" required />
+                                <ArrowRight size={14} className="text-slate-400 shrink-0 hidden sm:block" />
+                                <div className="flex items-center gap-2 flex-1 bg-slate-50 dark:bg-slate-950 rounded-lg px-3 py-2 border border-slate-200 dark:border-slate-800">
+                                    <span className="text-[9px] font-bold text-slate-400">DUE</span>
+                                    <input type="date" value={stEnd} onChange={e => setStEnd(e.target.value)} className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-300 outline-none w-full" required />
                                 </div>
-                                
-                                <button type="submit" disabled={!stTitle || !stEnd} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold uppercase disabled:opacity-50 transition-all shadow-md mt-2 md:mt-0">Add</button>
                             </div>
+                            <button type="submit" disabled={!stTitle || !stEnd} className="w-full xl:w-auto shrink-0 bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 px-5 py-2 rounded-lg text-xs font-bold uppercase disabled:opacity-50 transition-colors">Add</button>
                         </form>
                     )}
                 </div>
             )}
         </div>
-
       </div>
     </div>
   )

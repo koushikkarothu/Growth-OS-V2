@@ -2,21 +2,18 @@
 
 @layer base {
   body {
-    /* 🎯 THE FIX: Force the premium dark void globally */
-    @apply bg-slate-950 text-slate-50 antialiased selection:bg-indigo-500/30 selection:text-indigo-200;
-    background-image: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.05) 0%, transparent 70%);
-    background-attachment: fixed;
-    color-scheme: dark;
+    /* 🎯 THE FIX: Fluid Light/Dark support with clean slates */
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50 antialiased selection:bg-indigo-500/30 selection:text-indigo-800 dark:selection:text-indigo-200;
   }
 }
 
-/* PREMIUM GLOBAL SCROLLBARS */
+/* PROFESSIONAL GLOBAL SCROLLBARS */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-800/50 rounded-full;
+  @apply bg-slate-300 dark:bg-slate-800 rounded-full;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
-::-webkit-scrollbar-thumb:hover { @apply bg-slate-700; }
+::-webkit-scrollbar-thumb:hover { @apply bg-slate-400 dark:bg-slate-700; }
 html { scroll-behavior: smooth; }
