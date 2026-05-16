@@ -1,13 +1,14 @@
 @import "tailwindcss";
 
+/* 🎯 THE FIX: Tells Tailwind v4 to toggle dark mode when the .dark class is active */
+@custom-variant dark (&:is(.dark *));
+
 @layer base {
   body {
-    /* 🎯 THE FIX: Fluid Light/Dark support with clean slates */
     @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50 antialiased selection:bg-indigo-500/30 selection:text-indigo-800 dark:selection:text-indigo-200;
   }
 }
 
-/* PROFESSIONAL GLOBAL SCROLLBARS */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {

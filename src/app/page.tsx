@@ -158,12 +158,22 @@ export default function Dashboard() {
   }
 
   async function factoryReset() {
-    if (!confirm("⚠️ WARNING: This will wipe ALL missions, XP, sleep, and body tracking. Are you sure?")) return
+    if (!confirm("⚠️ PRESTIGE RESET: This will reset your Rank, Level, and ALL XP back to zero. Your missions, vocabulary, and historical logs will NOT be deleted. Are you sure?")) return
     setLoading(true)
+    
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    await Promise.all(['task_logs', 'tasks', 'goals', 'muscle_tracker', 'sleep_logs', 'knowledge'].map(table => supabase.from(table).delete().eq('user_id', user.id)))
+    
+    // 1. Reset Skill XP & Levels back to 1
     await supabase.from('skills').update({ current_xp: 0, level: 1 }).eq('user_id', user.id)
+    
+    // 2. Zero out XP from past task logs (keeps the log for heatmaps, removes the XP points)
+    await supabase.from('task_logs').update({ xp_earned: 0 }).eq('user_id', user.id)
+    
+    // 3. Reset Global Profile XP
+    await supabase.from('profiles').update({ xp: 0 }).eq('user_id', user.id)
+    
+    alert("Prestige Reset Complete. You are now a Rookie again.")
     window.location.reload()
   }
 

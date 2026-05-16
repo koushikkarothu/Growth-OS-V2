@@ -1,11 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Map, Play, Target, Compass, Award, LineChart, Globe, Video, Database, RotateCcw, Bot, PenTool, BookOpen, Zap, LogOut } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { LayoutDashboard, Map, Play, Target, Compass, Award, LineChart, Globe, Video, Database, RotateCcw, Bot, PenTool, BookOpen, Zap, LogOut, Sun, Moon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabaseClient'
-import { useRouter } from 'next/navigation'
+import { useTheme } from './ThemeProvider'
 
 const navGroups = [
   { label: "Execution", links: [{ name: 'Command Center', href: '/', icon: LayoutDashboard }, { name: 'Chrono Map', href: '/chrono', icon: Map }, { name: 'Deep Work', href: '/flow', icon: Play }, { name: 'Strategic Planner', href: '/planner', icon: Target }] },
@@ -17,6 +17,7 @@ const navGroups = [
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const { theme, toggleTheme } = useTheme()
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -24,11 +25,10 @@ export default function Sidebar() {
   }
 
   return (
-    /* 🎯 THE FIX: Edge-to-edge, flat white/dark background, sharp 1px border */
     <aside className="hidden lg:flex flex-col w-[260px] h-screen fixed left-0 top-0 bottom-0 z-50 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-colors">
       <div className="flex-1 flex flex-col overflow-hidden">
         
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800/50">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800/50 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center shadow-sm shrink-0">
               <Zap size={18} className="text-white" fill="currentColor" />
@@ -65,7 +65,11 @@ export default function Sidebar() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-2 shrink-0">
+          <button onClick={toggleTheme} className="flex items-center gap-3 w-full px-3 py-2 rounded-lg font-semibold text-sm text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
           <button onClick={handleLogout} className="flex items-center gap-3 w-full px-3 py-2 rounded-lg font-semibold text-sm text-slate-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-colors">
             <LogOut size={16} /><span>Disconnect</span>
           </button>

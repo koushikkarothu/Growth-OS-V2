@@ -1,9 +1,12 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
-import './globals.css'
-import MainLayout from '@/components/MainLayout' // We import the client component here
-import OneSignalInit from '@/components/OneSignalInit' // <--- IMPORT THIS
-import { ThemeProvider } from "@/components/ThemeProvider" // <--- Import this
+
+// 🎯 The absolute alias path. Unbreakable.
+import '@/app/globals.css' 
+
+import MainLayout from '@/components/MainLayout' 
+import OneSignalInit from '@/components/OneSignalInit' 
+import { ThemeProvider } from "@/components/ThemeProvider" 
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -20,13 +23,8 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 antialiased`}>
-        <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
+      <body className={`${inter.className} bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 antialiased transition-colors duration-300`}>
+        <ThemeProvider>
             <OneSignalInit />
             <MainLayout>
               {children}
