@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { BookOpen, Search, ChevronRight, CheckCircle2, AlertTriangle, Zap, Target } from 'lucide-react'
+import { BookOpen, Search, ChevronRight, CheckCircle2, AlertTriangle, Zap, Target, Plus, Save, X, Wand2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabaseClient'
+import CreateNoteModal from '@/components/CreateNoteModal'
 
 export default function LearnPage() {
   const [topicInput, setTopicInput] = useState('')
@@ -13,6 +14,16 @@ export default function LearnPage() {
   
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [quizStatus, setQuizStatus] = useState<'idle' | 'evaluating' | 'correct' | 'incorrect'>('idle')
+
+  // Knowledge Vault & Vocab State
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false)
+  const [showVocabModal, setShowVocabModal] = useState(false)
+  const [vocabLang, setVocabLang] = useState<'en' | 'de'>('en')
+  const [vWord, setVWord] = useState(''); const [vTrans, setVTrans] = useState('')
+  const [vType, setVType] = useState('Noun'); const [vGender, setVGender] = useState('der')
+  const [vPlural, setVPlural] = useState(''); const [vConj, setVConj] = useState('')
+  const [isAutoFilling, setIsAutoFilling] = useState(false)
+  const [isSavingVocab, setIsSavingVocab] = useState(false)
 
   const generateCourse = async (e: React.FormEvent) => {
       e.preventDefault()
@@ -49,14 +60,62 @@ export default function LearnPage() {
       }, 800);
   }
 
+  async function autoFillQuickVocab() {
+      if (!vWord.trim()) return;
+      setIsAutoFilling(true);
+      const customPrompt = vocabLang === 'de' 
+        ? `Analyze German word "${vWord}". Return ONLY JSON: {"translation":"mean","word_type":"Noun","gender":"der","plural":"...","conjugation":"..."}`
+        : `Provide a short dictionary definition for the English word "${vWord}". Return ONLY plain text. No JSON.`
+      try {
+          const res = await fetch('/api/ai-tutor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: customPrompt, expectJson: vocabLang === 'de' }) })
+          const data = await res.json()
+          if (data.result) {
+              if (vocabLang === 'en') setVTrans(data.result);
+              else {
+                 const parsed = data.result; 
+                 if(parsed.translation) setVTrans(parsed.translation);
+                 if(parsed.word_type) setVType(parsed.word_type);
+                 if(parsed.gender && parsed.word_type === 'Noun') setVGender(parsed.gender);
+                 if(parsed.plural) setVPlural(parsed.plural);
+                 if(parsed.conjugation) setVConj(parsed.conjugation);
+              }
+          }
+      } catch (e) {}
+      setIsAutoFilling(false);
+  }
+
+  async function saveQuickVocab(e: React.FormEvent) {
+      e.preventDefault(); setIsSavingVocab(true);
+      const { data: { user } } = await supabase.auth.getUser()
+      if (vocabLang === 'en') await supabase.from('vocabulary').insert([{ user_id: user?.id, word: vWord, definition: vTrans }])
+      else await supabase.from('german_vocabulary').insert([{ user_id: user?.id, word: vWord, translation: vTrans, word_type: vType, gender: vType === 'Noun' ? vGender : null, plural_form: vPlural, conjugation: vConj }])
+      setIsSavingVocab(false); setShowVocabModal(false); setVWord(''); setVTrans(''); setVPlural(''); setVConj('');
+  }
+
   return (
     <div className="w-full pb-32 animate-in fade-in duration-500">
-      <header className="mb-8 border-b border-slate-200 dark:border-slate-800 pb-8 mt-2">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3 tracking-tight">
-             <div className="p-2.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl border border-indigo-100 dark:border-indigo-500/20"><BookOpen className="text-indigo-600 dark:text-indigo-400" size={24} /></div>
-             Deep Dive Engine
-          </h1>
-          <p className="text-slate-500 font-medium mt-2 text-sm">On-demand curriculum architect.</p>
+      
+      {/* KNOWLEDGE VAULT INTEGRATION */}
+      <CreateNoteModal 
+        isOpen={isSaveModalOpen} 
+        onClose={() => setIsSaveModalOpen(false)} 
+        onNoteAdded={() => setIsSaveModalOpen(false)} 
+        initialData={courseData ? { 
+            topic: "Deep Dive Curriculum", 
+            concept: courseData.title, 
+            details: `${courseData.overview}\n\n${courseData.chapters.map((c: any, i: number) => `### Chapter ${i + 1}: ${c.title}\n\n${c.content.replace(/<[^>]*>?/gm, '')}\n\nKey Takeaway: ${c.keyTakeaway}`).join('\n\n')}` 
+        } : null} 
+      />
+
+      <header className="mb-8 border-b border-slate-200 dark:border-slate-800 pb-8 mt-2 flex flex-col md:flex-row justify-between md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3 tracking-tight">
+               <div className="p-2.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl border border-indigo-100 dark:border-indigo-500/20"><BookOpen className="text-indigo-600 dark:text-indigo-400" size={24} /></div>
+               Deep Dive Engine
+            </h1>
+            <p className="text-slate-500 font-medium mt-2 text-sm">On-demand curriculum architect.</p>
+          </div>
+          <button onClick={() => setShowVocabModal(true)} className="flex items-center justify-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm hover:shadow-md text-sm md:w-auto w-full"><Plus size={16}/> Quick Vocab</button>
       </header>
 
       {!courseData && (
@@ -76,9 +135,12 @@ export default function LearnPage() {
       {courseData && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-bottom-8">
               <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-4">
-                  <div className="bg-slate-900 dark:bg-slate-950 text-white p-6 rounded-2xl shadow-sm border border-slate-800">
-                      <h3 className="font-bold text-base mb-2 leading-tight">{courseData.title}</h3>
-                      <p className="text-slate-400 text-xs font-medium leading-relaxed">{courseData.overview}</p>
+                  <div className="bg-slate-900 dark:bg-slate-950 text-white p-6 rounded-2xl shadow-sm border border-slate-800 flex justify-between items-start gap-4">
+                      <div>
+                        <h3 className="font-bold text-base mb-2 leading-tight">{courseData.title}</h3>
+                        <p className="text-slate-400 text-xs font-medium leading-relaxed">{courseData.overview}</p>
+                      </div>
+                      <button onClick={() => setIsSaveModalOpen(true)} title="Save Course to Vault" className="p-2 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors shrink-0"><Save size={16}/></button>
                   </div>
                   <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-sm flex flex-col gap-1.5">
                       <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-3 pt-2 pb-1.5">Syllabus</h4>
@@ -147,6 +209,36 @@ export default function LearnPage() {
                           </div>
                       )}
                   </div>
+              </div>
+          </div>
+      )}
+
+      {/* QUICK VOCAB MODAL */}
+      {showVocabModal && (
+          <div className="fixed inset-0 z-[500] bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-md shadow-2xl relative">
+                  <button onClick={() => setShowVocabModal(false)} className="absolute top-4 right-4 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg transition-colors"><X size={18}/></button>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Log New Word</h3>
+                  <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg mb-5">
+                      <button onClick={() => setVocabLang('en')} className={cn("flex-1 py-1.5 text-xs font-semibold rounded-md transition-all", vocabLang === 'en' ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-white")}>🇬🇧 English</button>
+                      <button onClick={() => setVocabLang('de')} className={cn("flex-1 py-1.5 text-xs font-semibold rounded-md transition-all", vocabLang === 'de' ? "bg-amber-500 text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-white")}>🇩🇪 Deutsch</button>
+                  </div>
+                  <form onSubmit={saveQuickVocab} className="space-y-3">
+                      {vocabLang === 'de' && (
+                          <div className="grid grid-cols-2 gap-3">
+                              <select value={vType} onChange={e => setVType(e.target.value)} className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white outline-none"><option>Noun</option><option>Verb</option><option>Adjective</option><option>Adverb</option><option>Preposition</option><option>Other</option></select>
+                              {vType === 'Noun' && (<select value={vGender} onChange={e => setVGender(e.target.value)} className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white outline-none"><option value="der">der (M)</option><option value="die">die (F)</option><option value="das">das (N)</option></select>)}
+                          </div>
+                      )}
+                      <div className="relative">
+                        <input type="text" placeholder={vocabLang === 'en' ? "Word / Phrase" : "German Word"} value={vWord} onChange={e => setVWord(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg pl-3 pr-10 py-2.5 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-indigo-500 transition-colors" required />
+                        <button type="button" onClick={autoFillQuickVocab} disabled={isAutoFilling || !vWord} title="AI Auto-Fill Details" className="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300 p-1 rounded-md transition-colors disabled:opacity-50"><Wand2 size={16} className={isAutoFilling ? "animate-spin" : ""} /></button>
+                      </div>
+                      <input type="text" placeholder={vocabLang === 'en' ? "Definition" : "English Translation"} value={vTrans} onChange={e => setVTrans(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-indigo-500 transition-colors" required />
+                      {vocabLang === 'de' && vType === 'Noun' && <input type="text" placeholder="Plural (e.g. die Häuser)" value={vPlural} onChange={e => setVPlural(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-900 dark:text-white outline-none focus:border-indigo-500 transition-colors" />}
+                      {vocabLang === 'de' && vType === 'Verb' && <input type="text" placeholder="Conjugation Notes" value={vConj} onChange={e => setVConj(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-900 dark:text-white outline-none focus:border-indigo-500 transition-colors" />}
+                      <button type="submit" disabled={isSavingVocab || !vWord || !vTrans} className="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white py-2.5 rounded-lg font-bold shadow-sm transition-colors flex items-center justify-center text-sm">{isSavingVocab ? <Wand2 size={16} className="animate-spin" /> : "Secure to Vault"}</button>
+                  </form>
               </div>
           </div>
       )}

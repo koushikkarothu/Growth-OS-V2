@@ -42,19 +42,25 @@ export async function POST(req: Request) {
         
         let promptGenerator = "";
         if (taskType === 'Task 1 (Academic)') {
-            // 🎯 THE FIX: Force the AI to use a randomly selected chart type every time
             const chartTypes = ["bar", "line", "pie", "doughnut"];
             const randomChart = chartTypes[Math.floor(Math.random() * chartTypes.length)];
 
-            promptGenerator = `You are a Cambridge IELTS Exam Creator. Generate an authentic, difficult IELTS Academic Task 1 past-paper question about ${randomTheme}. 
+            promptGenerator = `You are a Cambridge IELTS Exam Creator. Generate a standard, realistic IELTS Academic Task 1 question about ${randomTheme}. 
+            The question text MUST be exactly 1 to 2 sentences long (e.g., "The chart below shows... Summarize the information by selecting and reporting the main features, and make comparisons where relevant.").
             You MUST return a JSON object with two keys: "text" and "chartConfig".
-            1. "text": The exact essay prompt.
+            1. "text": The exact essay prompt (MAX 2 sentences). Do not include extraneous text or instructions like "Write at least 150 words".
             2. "chartConfig": A VALID JSON object representing a Chart.js configuration. 
             CRITICAL: You MUST use the chart type: '${randomChart}'. Do NOT use any other chart type.
             Example config structure: {"type": "${randomChart}", "data": {"labels": ["2010", "2020"], "datasets": [{"label": "Group A", "data": [50, 60]}]}}`;
         } else {
-            promptGenerator = `You are a Cambridge IELTS Exam Creator. Generate an authentic, difficult IELTS Task 2 essay question about ${randomTheme} (e.g., Discuss both views, To what extent do you agree).
-            You MUST return a JSON object with two keys: "text" (the prompt) and "chartConfig" (null).`;
+            // 🎯 THE FIX: Strict constraints on Task 2 generation to prevent paragraph hallucinations.
+            promptGenerator = `You are a Cambridge IELTS Exam Creator. Generate a standard, concise IELTS Task 2 essay question about ${randomTheme}.
+            CRITICAL RULES:
+            1. The question MUST be exactly 2 to 3 sentences long. 
+            2. It must follow standard IELTS formats: a brief context statement, followed by a direct question like "To what extent do you agree?", "Discuss both views and give your opinion.", or "What are the causes and solutions?".
+            3. Do NOT include long background paragraphs.
+            
+            You MUST return a JSON object with two keys: "text" (the concise prompt) and "chartConfig" (null).`;
         }
 
         const generatedData = await executeWithWaterfall(promptGenerator, true);
@@ -68,7 +74,7 @@ export async function POST(req: Request) {
     }
 
     // ============================================================================
-    // MODE 2: THE OBJECTIVE CAMBRIDGE GRADER (ANTI-ANCHORING PROTOCOL)
+    // MODE 2: THE OBJECTIVE CAMBRIDGE GRADER
     // ============================================================================
     const { taskType, prompt, essay, wordCount } = body;
 
