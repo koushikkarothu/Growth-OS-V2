@@ -1,37 +1,45 @@
-"use client"; // Required for Next.js 13+ App Router
+"use client";
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // Use 'next/router' if on older Next.js
+import { useRouter } from 'next/navigation';
 import { App, URLOpenListenerEvent } from '@capacitor/app';
 
 export default function DeepLinkHandler() {
   const router = useRouter();
 
   useEffect(() => {
-    // Listen for the custom URL from the Android Widget
-    const listener = App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
-      
-      // event.url will look like: "growthos://app/audio"
-      const url = new URL(event.url);
-      
-      // Verify it's our custom widget signal
-      if (url.protocol === 'growthos:') {
-        // url.pathname will be "/audio", "/text", or "/dive"
-        const routePath = url.pathname; 
-        
-        if (routePath) {
-          // Instantly route the user to the correct Next.js page
-          router.push(routePath);
+    // 1. The routing engine
+    const routeToTarget = (urlStr: string) => {
+      try {
+        const url = new URL(urlStr);
+        if (url.protocol === 'growthos:') {
+          const routePath = url.pathname; // Will extract "/audio", "/text", etc.
+          if (routePath && routePath !== '/') {
+            router.push(routePath);
+          }
         }
+      } catch (err) {
+        console.error("Deep link parse error:", err);
+      }
+    };
+
+    // 2. Catch COLD Starts (App was completely closed)
+    App.getLaunchUrl().then((ret) => {
+      if (ret && ret.url) {
+        routeToTarget(ret.url);
       }
     });
 
-    // Cleanup the listener when the app closes
+    // 3. Catch WARM Starts (App was running in background)
+    const listener = App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
+      routeToTarget(event.url);
+    });
+
+    // Cleanup
     return () => {
       listener.then(handle => handle.remove());
     };
   }, [router]);
 
-  // This component is invisible, it just runs logic
-  return null; 
+  return null;
 }
