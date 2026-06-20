@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { PenTool, Target, Clock, Activity, TrendingUp, AlertTriangle, CheckCircle2, ChevronRight, RefreshCw, Sparkles, Wand2, Archive, Trash2, ArrowLeft, Link as LinkIcon } from 'lucide-react'
+import { PenTool, Target, Clock, Activity, TrendingUp, AlertTriangle, CheckCircle2, ChevronRight, RefreshCw, Sparkles, Wand2, Archive, Trash2, ArrowLeft, Link as LinkIcon, Lightbulb } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface IELTSPrompt { text: string; image: string | null; }
@@ -22,6 +22,10 @@ export default function IELTSForgePage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [feedback, setFeedback] = useState<any>(null)
   const [errorMsg, setErrorMsg] = useState('')
+
+  // 🎯 NEW: Brainstorm State
+  const [brainstormHtml, setBrainstormHtml] = useState<string | null>(null)
+  const [isBrainstorming, setIsBrainstorming] = useState(false)
 
   const [historyLogs, setHistoryLogs] = useState<any[]>([])
   const [viewingHistoricalLog, setViewingHistoricalLog] = useState<any>(null)
@@ -93,13 +97,14 @@ export default function IELTSForgePage() {
       setIsGeneratingPrompt(true)
       setFeedback(null)
       setEssay('')
+      setBrainstormHtml(null)
       setTimerActive(false)
       const newTime = typeToGenerate === 'Task 1 (Academic)' ? 20 * 60 : 40 * 60;
       setTotalTimeLimit(newTime)
       setTimeLeft(newTime)
       setErrorMsg('')
       
-      setCurrentPrompt({ text: "Mining authentic past papers...", image: null })
+      setCurrentPrompt({ text: "Mining authentic Cambridge past papers...", image: null })
       
       try {
           const res = await fetch('/api/ielts', {
@@ -115,6 +120,20 @@ export default function IELTSForgePage() {
       setIsGeneratingPrompt(false)
   }
 
+  // 🎯 NEW: Brainstorm Idea Generation
+  const fetchBrainstorm = async () => {
+      setIsBrainstorming(true)
+      try {
+          const res = await fetch('/api/ielts', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: "brainstorm", prompt: currentPrompt.text })
+          })
+          const data = await res.json()
+          if (data.brainstorm && data.brainstorm.htmlContent) setBrainstormHtml(data.brainstorm.htmlContent)
+      } catch (err) { alert("Failed to fetch ideas.") }
+      setIsBrainstorming(false)
+  }
+
   const submitForGrading = async () => {
       if (wordCount < 20) return setErrorMsg("Commander, write at least 20 words before requesting an analysis.");
       
@@ -122,10 +141,7 @@ export default function IELTSForgePage() {
       const timeSpentSeconds = totalTimeAllocated - timeLeft;
       const timeSpentMinutes = Math.max(1, Math.round(timeSpentSeconds / 60));
       
-      setTimerActive(false)
-      setIsAnalyzing(true)
-      setErrorMsg('')
-      setFeedback(null)
+      setTimerActive(false); setIsAnalyzing(true); setErrorMsg(''); setFeedback(null);
 
       try {
           const res = await fetch('/api/ielts', {
@@ -149,23 +165,17 @@ export default function IELTSForgePage() {
                       const { data: targetTask } = await supabase.from('tasks').select('*').eq('id', linkedMissionId).single();
                       if (targetTask) {
                           await supabase.from('tasks').update({ 
-                              time_logged: (targetTask.time_logged || 0) + timeSpentMinutes,
-                              last_completed_at: todayStr, 
-                              current_streak: targetTask.current_streak + 1
+                              time_logged: (targetTask.time_logged || 0) + timeSpentMinutes, last_completed_at: todayStr, current_streak: targetTask.current_streak + 1
                           }).eq('id', targetTask.id);
-
                           await supabase.from('task_logs').insert([{ 
-                              user_id: user.id, task_id: targetTask.id, date: todayStr, 
-                              duration_minutes: timeSpentMinutes, xp_earned: xpAward 
+                              user_id: user.id, task_id: targetTask.id, date: todayStr, duration_minutes: timeSpentMinutes, xp_earned: xpAward 
                           }]);
                       }
                   }
               }
           }
           else setErrorMsg(data.error || "Analysis failed.")
-      } catch (err) {
-          setErrorMsg("Connection to AI Examiner lost.")
-      }
+      } catch (err) { setErrorMsg("Connection to AI Examiner lost.") }
       setIsAnalyzing(false)
   }
 
@@ -184,14 +194,12 @@ export default function IELTSForgePage() {
           <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-8 rounded-2xl shadow-sm text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 p-8 opacity-10"><Activity size={120} /></div>
               <h2 className="text-indigo-200 font-bold uppercase tracking-widest text-xs mb-2">Overall Band Score</h2>
-              <div className="text-7xl font-extrabold mb-4">{data.overallBand.toFixed(1)}</div>
-              <div className="flex items-center gap-4">
-                  <p className="text-indigo-100 font-medium text-sm leading-relaxed">Scored against official Cambridge rubrics.</p>
-                  {!isHistoryView && (
-                      <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-md text-xs font-bold uppercase tracking-widest animate-pulse">
-                          +{Math.floor(50 + (data.overallBand * 20))} XP
-                      </span>
-                  )}
+              <div className="text-7xl font-extrabold mb-2">{data.overallBand.toFixed(1)}</div>
+              
+              {/* 🎯 NEW: The AI Scoring Disclaimer */}
+              <div className="bg-indigo-900/40 border border-indigo-400/30 rounded-lg p-3 mt-4 text-xs font-medium text-indigo-100 flex items-start gap-2">
+                  <AlertTriangle size={16} className="shrink-0 text-amber-400" />
+                  <p><strong>Examiner Note:</strong> AI models are notoriously strict and often underscore grammar compared to human examiners. Focus heavily on the Lexical Upgrades and Master Rewrites below rather than the numerical score.</p>
               </div>
           </div>
 
@@ -305,11 +313,17 @@ export default function IELTSForgePage() {
                 <div className={cn("flex flex-col gap-6 transition-all duration-500", feedback ? "xl:col-span-5" : "xl:col-span-8 xl:col-start-3")}>
                     
                     <div className="bg-indigo-50 dark:bg-indigo-900/10 p-6 md:p-8 rounded-2xl border border-indigo-100 dark:border-indigo-800/50 shadow-sm relative group">
-                        <div className="flex justify-between items-center mb-6">
+                        <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
                             <span className="font-bold text-indigo-800 dark:text-indigo-300 tracking-wider uppercase text-xs flex items-center gap-2"><Target size={14}/> Authentic Assignment</span>
-                            <button onClick={() => generateNewPrompt(taskType)} disabled={isGeneratingPrompt} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-md transition-colors disabled:opacity-50">
-                                <Wand2 size={14} className={isGeneratingPrompt ? "animate-spin" : ""} /> {isGeneratingPrompt ? 'Forging...' : 'New Prompt'}
-                            </button>
+                            <div className="flex items-center gap-2">
+                                {/* 🎯 NEW: Brainstorm Button */}
+                                <button onClick={fetchBrainstorm} disabled={isBrainstorming || isGeneratingPrompt} className="flex items-center gap-2 bg-white dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-800/50 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors disabled:opacity-50">
+                                    <Lightbulb size={14} className={isBrainstorming ? "animate-pulse text-amber-500" : "text-amber-500"} /> {isBrainstorming ? 'Thinking...' : 'Brainstorm'}
+                                </button>
+                                <button onClick={() => generateNewPrompt(taskType)} disabled={isGeneratingPrompt} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-md transition-colors disabled:opacity-50">
+                                    <Wand2 size={14} className={isGeneratingPrompt ? "animate-spin" : ""} /> {isGeneratingPrompt ? 'Forging...' : 'New Prompt'}
+                                </button>
+                            </div>
                         </div>
                         {currentPrompt.image && (
                             <div className="mb-6 rounded-lg overflow-hidden border border-indigo-200 dark:border-indigo-800 bg-white shadow-sm">
@@ -317,6 +331,14 @@ export default function IELTSForgePage() {
                             </div>
                         )}
                         <p className="text-base font-medium text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{currentPrompt.text}</p>
+                        
+                        {/* 🎯 NEW: Brainstorm Panel */}
+                        {brainstormHtml && (
+                            <div className="mt-6 p-5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700 rounded-xl animate-in slide-in-from-top-4 shadow-sm">
+                                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2"><Lightbulb size={14} className="text-amber-500"/> Strategic Ideas</h4>
+                                <div className="prose dark:prose-invert max-w-none text-sm font-medium text-slate-700 dark:text-slate-300 brainstorm-content" dangerouslySetInnerHTML={{ __html: brainstormHtml }} />
+                            </div>
+                        )}
                     </div>
 
                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col relative">
@@ -362,6 +384,10 @@ export default function IELTSForgePage() {
                     </div>
                 )}
             </div>
+            <style dangerouslySetInnerHTML={{__html: `
+                .brainstorm-content ul { list-style-type: disc; padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+                .brainstorm-content li { margin-bottom: 0.25rem; }
+            `}} />
         </>
       )}
 

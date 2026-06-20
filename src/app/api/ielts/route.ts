@@ -1,30 +1,37 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+const safetySettings = [
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+];
+
 async function executeWithWaterfall(prompt: string, expectJson: boolean = true) {
-    const modelsToTry = ["gemma-3-27b-it", "gemma-3-12b-it", "gemini-2.5-flash"];
+    const modelsToTry = ["gemini-2.5-pro", "gemini-1.5-pro", "gemini-2.5-flash"];
 
     for (const modelName of modelsToTry) {
         try {
-            const model = genAI.getGenerativeModel({ model: modelName });
+            const model = genAI.getGenerativeModel({ model: modelName, safetySettings });
             const result = await model.generateContent(prompt);
             const text = await result.response.text();
             
             if (expectJson) {
-                const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-                return JSON.parse(cleanJson);
+                const match = text.match(/\{[\s\S]*\}/);
+                if (match) return JSON.parse(match[0]);
+                return JSON.parse(text.replace(/```json/gi, '').replace(/```/g, '').trim());
             }
             return text;
         } catch (error: any) {
-            const isBypassable = error.status === 429 || error.status === 503 || error.status === 404 || error.status === 403 || 
-                (error.message && (error.message.includes('429') || error.message.includes('503') || error.message.includes('404')));
+            const isBypassable = error.status === 429 || error.status === 503 || error.status === 404 || error.status === 403 || error.status === 400;
             if (isBypassable) continue; 
             throw error; 
         }
     }
-    throw new Error("RATE_LIMIT_EXHAUSTED");
+    throw new Error("RATE_LIMIT_EXHAUSTED_OR_API_ERROR");
 }
 
 export async function POST(req: Request) {
@@ -32,84 +39,86 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     // ============================================================================
-    // MODE 1: FLAWLESS PROMPT & RANDOMIZED CHART GENERATOR
+    // MODE 1: AUTHENTIC PDF-STYLE PROMPT GENERATOR
     // ============================================================================
     if (body.action === "generate_prompt") {
         const { taskType } = body;
         
-        const themes = ["Education", "Technology", "Healthcare", "Environment", "Crime", "Economy", "Globalization", "Public Transport", "Society", "Space Exploration", "History", "Workplace"];
+        // Themes directly extracted from recent IELTS papers
+        const themes = ["City Populations and Housing", "Internet News Reliability", "Retirement Homes vs Family Care", "Celebrity Role Models for Youth", "Expensive Sports/Cultural Tickets", "Recycling and Waste Management", "Teenage Crime Rates", "Computer Games and Children", "Online Shopping Trends"];
         const randomTheme = themes[Math.floor(Math.random() * themes.length)];
         
         let promptGenerator = "";
         if (taskType === 'Task 1 (Academic)') {
-            const chartTypes = ["bar", "line", "pie", "doughnut"];
+            const chartTypes = ["bar", "line", "pie"];
             const randomChart = chartTypes[Math.floor(Math.random() * chartTypes.length)];
-
-            promptGenerator = `You are a Cambridge IELTS Exam Creator. Generate a standard, realistic IELTS Academic Task 1 question about ${randomTheme}. 
-            The question text MUST be exactly 1 to 2 sentences long (e.g., "The chart below shows... Summarize the information by selecting and reporting the main features, and make comparisons where relevant.").
-            You MUST return a JSON object with two keys: "text" and "chartConfig".
-            1. "text": The exact essay prompt (MAX 2 sentences). Do not include extraneous text or instructions like "Write at least 150 words".
-            2. "chartConfig": A VALID JSON object representing a Chart.js configuration. 
-            CRITICAL: You MUST use the chart type: '${randomChart}'. Do NOT use any other chart type.
-            Example config structure: {"type": "${randomChart}", "data": {"labels": ["2010", "2020"], "datasets": [{"label": "Group A", "data": [50, 60]}]}}`;
+            promptGenerator = `Generate a standard IELTS Academic Task 1 question about ${randomTheme}. 
+            The text MUST be exactly 1 to 2 sentences long.
+            Return a JSON object: {"text": "<Prompt>", "chartConfig": <Valid Chart.js Config for type '${randomChart}'>}`;
         } else {
-            // 🎯 THE FIX: Strict constraints on Task 2 generation to prevent paragraph hallucinations.
-            promptGenerator = `You are a Cambridge IELTS Exam Creator. Generate a standard, concise IELTS Task 2 essay question about ${randomTheme}.
+            // 🎯 THE FIX: Hardcoding the exact question structures from your PDF
+            const structures = [
+                "To what extent do you agree or disagree?",
+                "Is this a positive or negative development?",
+                "What are the reasons for this? Is it a positive or negative trend?",
+                "What are the causes of this problem and what can be done to solve it?",
+                "Discuss both these views and give your own opinion.",
+                "Why do you think this is the case? Is it a positive or negative development?"
+            ];
+            const randomStructure = structures[Math.floor(Math.random() * structures.length)];
+
+            promptGenerator = `Generate a highly authentic, exact replica of a Cambridge IELTS Task 2 essay question about ${randomTheme}.
             CRITICAL RULES:
-            1. The question MUST be exactly 2 to 3 sentences long. 
-            2. It must follow standard IELTS formats: a brief context statement, followed by a direct question like "To what extent do you agree?", "Discuss both views and give your opinion.", or "What are the causes and solutions?".
-            3. Do NOT include long background paragraphs.
+            1. Sentence 1: A brief context statement stating a fact or trend about the topic.
+            2. Sentence 2 MUST BE EXACTLY this phrase, word-for-word: "${randomStructure}"
+            3. Do NOT include ANY extra instructions, tips, or paragraphing. Just the 2 sentences.
             
-            You MUST return a JSON object with two keys: "text" (the concise prompt) and "chartConfig" (null).`;
+            Return a JSON object: {"text": "<The 2-sentence prompt>", "chartConfig": null}`;
         }
 
         const generatedData = await executeWithWaterfall(promptGenerator, true);
-        
         let imageUrl = null;
-        if (generatedData.chartConfig) {
-            imageUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(generatedData.chartConfig))}`;
-        }
+        if (generatedData.chartConfig) imageUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(generatedData.chartConfig))}`;
 
         return NextResponse.json({ prompt: { text: generatedData.text, image: imageUrl } });
     }
 
     // ============================================================================
-    // MODE 2: THE OBJECTIVE CAMBRIDGE GRADER
+    // MODE 2: THE BRAINSTORM ENGINE (New Feature from Video)
     // ============================================================================
-    const { taskType, prompt, essay, wordCount } = body;
+    if (body.action === "brainstorm") {
+        const brainstormPrompt = `The user is writing an IELTS Task 2 essay based on this prompt: "${body.prompt}"
+        Generate a highly structured, bulleted list of ideas to help them brainstorm.
+        Provide 2 excellent arguments/points for ONE side (or causes), and 2 excellent arguments for the OTHER side (or solutions).
+        Include 2-3 C1/C2 level vocabulary words they should try to use.
+        
+        Return ONLY a JSON object:
+        { "htmlContent": "<HTML formatted content using <ul>, <li>, and <strong>. Keep it extremely concise and easy to read.>" }`;
 
-    if (!essay || essay.trim().length < 20) {
-        return NextResponse.json({ error: "Your response is too short to analyze." }, { status: 400 });
+        const parsedData = await executeWithWaterfall(brainstormPrompt, true);
+        return NextResponse.json({ brainstorm: parsedData });
     }
 
+    // ============================================================================
+    // MODE 3: THE OBJECTIVE CAMBRIDGE GRADER
+    // ============================================================================
+    const { taskType, prompt, essay, wordCount } = body;
+    if (!essay || essay.trim().length < 20) return NextResponse.json({ error: "Response too short." }, { status: 400 });
+
     const targetWords = taskType === 'Task 1 (Academic)' ? 150 : 250;
+    const gradingPrompt = `Grade this candidate's ${taskType} essay using IELTS band descriptors.
+    Prompt: "${prompt}"
+    Essay: "${essay}"
 
-    const gradingPrompt = `You are an official, highly objective Cambridge IELTS Examiner. Grade this candidate's ${taskType} essay using the official public band descriptors.
-    The Essay Prompt was: "${prompt}"
-    The Candidate's Essay is: "${essay}"
-    Candidate Word Count: ${wordCount} words. Target Minimum: ${targetWords} words.
-
-    CRITICAL RULES:
-    1. YOU MUST CALCULATE THE ACTUAL SCORE based on the essay's merit. DO NOT copy the placeholder values in the JSON template. 
-    2. BE ACCURATE: Reward C1/C2 vocabulary and complex grammar appropriately. Give 8.5 or 9.0 if the writing is exceptional.
-    3. PENALTY: Severely penalize only if the word count is significantly below the target (${targetWords}).
-    4. You MUST separate paragraphs in your "fullRewrite" using EXACTLY the characters "\\n\\n".
-    
-    You MUST return ONLY a raw JSON object. Replace the bracketed placeholders with your calculated data:
+    Return JSON:
     {
-      "overallBand": <calculated float between 0.0 and 9.0>,
-      "taskResponse": { "score": <calculated float>, "feedback": "<objective explanation>" },
-      "coherence": { "score": <calculated float>, "feedback": "<objective explanation>" },
-      "lexical": { "score": <calculated float>, "feedback": "<objective explanation>" },
-      "grammatical": { "score": <calculated float>, "feedback": "<objective explanation>" },
-      "weakestLink": {
-        "originalSentence": "<the actual weakest sentence from the candidate's essay>",
-        "rewrite": "<your Band 9 improved version>",
-        "explanation": "<why it is better>"
-      },
-      "vocabularyUpgrades": [
-        { "basic": "<basic word>", "advanced": "<advanced word>", "context": "<how to use it>" }
-      ],
+      "overallBand": <float 0-9>,
+      "taskResponse": { "score": <float>, "feedback": "<explanation>" },
+      "coherence": { "score": <float>, "feedback": "<explanation>" },
+      "lexical": { "score": <float>, "feedback": "<explanation>" },
+      "grammatical": { "score": <float>, "feedback": "<explanation>" },
+      "weakestLink": { "originalSentence": "<sentence>", "rewrite": "<Band 9 version>", "explanation": "<why>" },
+      "vocabularyUpgrades": [ { "basic": "<word>", "advanced": "<C1/C2 word>", "context": "<usage>" } ],
       "fullRewrite": "<Paragraph 1>\\n\\n<Paragraph 2>\\n\\n<Paragraph 3>"
     }`;
 
@@ -117,7 +126,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ analysis: parsedData });
 
   } catch (error: any) {
-    console.error("IELTS Analysis Error:", error);
-    return NextResponse.json({ error: 'Failed to process with AI Examiner.' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to process AI request.' }, { status: 500 });
   }
 }

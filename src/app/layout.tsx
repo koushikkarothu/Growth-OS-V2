@@ -1,3 +1,4 @@
+import DeepLinkHandler from '@/components/DeepLinkHandler'; // Adjust path if needed
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
             <OneSignalInit />
             <MainLayout>
+              <DeepLinkHandler />
               {children}
             </MainLayout>
         </ThemeProvider>
